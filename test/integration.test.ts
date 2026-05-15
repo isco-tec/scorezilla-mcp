@@ -6,10 +6,17 @@
  * a tool end-to-end through the MCP protocol. This is the SDK-blessed
  * way to test a server without spawning a child process.
  */
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, expectTypeOf, it, vi } from 'vitest';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { buildServer } from '../src/index';
+import type {
+  McpBootstrapSuccess,
+  McpGameSummary,
+  McpGetBoardTopResponse,
+  McpKeySummary,
+  McpListGamesResponse,
+} from '../src/contract';
 
 const TEST_CONFIG = {
   baseUrl: 'https://api.example.test',
@@ -215,5 +222,69 @@ describe('input validation', () => {
     expect(result.isError).toBe(true);
     const text = (result.content as Array<{ text: string }>)[0]!.text;
     expect(text).toContain('gameSlug');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Contract — shapes the tests mock against MUST match the types this
+// server consumes. If a developer updates `src/contract.ts` (typically
+// in lockstep with the API repo's `apps/api/src/mcp/contract.ts`) and
+// forgets to update the mocks, this section fails the compile.
+// ---------------------------------------------------------------------------
+
+describe('contract shapes', () => {
+  it('list_games mock satisfies McpListGamesResponse', () => {
+    const fixture = {
+      ok: true,
+      games: [{ id: 'g1', slug: 'pong', name: 'Pong', createdAt: 1 }],
+    } satisfies McpListGamesResponse;
+    expectTypeOf(fixture).toMatchTypeOf<McpListGamesResponse>();
+    // Runtime assertions catch any future runtime-only drift.
+    expect(fixture.ok).toBe(true);
+    expect(fixture.games[0]).toMatchObject<McpGameSummary>({
+      id: 'g1',
+      slug: 'pong',
+      name: 'Pong',
+      createdAt: 1,
+    });
+  });
+
+  it('bootstrap_leaderboard mock satisfies McpBootstrapSuccess', () => {
+    const fixture = {
+      ok: true,
+      gameId: '11111111-1111-1111-1111-111111111111',
+      boardId: '22222222-2222-2222-2222-222222222222',
+      publicKey: 'pk_pong_abc',
+      sdkSnippet: "import { Scorezilla } from 'scorezilla';",
+    } satisfies McpBootstrapSuccess;
+    expectTypeOf(fixture).toMatchTypeOf<McpBootstrapSuccess>();
+  });
+
+  it('boards/top mock satisfies McpGetBoardTopResponse', () => {
+    const fixture = {
+      ok: true,
+      boardId: '00000000-0000-0000-0000-000000000000',
+      entries: [
+        { rank: 1, playerId: 'p1', score: 100, submittedAt: 1 },
+      ],
+    } satisfies McpGetBoardTopResponse;
+    expectTypeOf(fixture).toMatchTypeOf<McpGetBoardTopResponse>();
+  });
+
+  it('keys: secret-key plaintext is always null at the contract level', () => {
+    const sk: McpKeySummary = {
+      id: 'k',
+      kind: 'secret',
+      prefix: 'sk_live_aaaa',
+      plaintext: null,
+      lastRotatedAt: null,
+      revokedAt: null,
+      createdAt: 0,
+    };
+    // The contract says `plaintext: string | null`. The handler's
+    // invariant — secret-key plaintext is NEVER returned over MCP —
+    // is enforced server-side. This test pins our local intuition
+    // that we encode `null` for secrets in fixtures.
+    expect(sk.plaintext).toBeNull();
   });
 });

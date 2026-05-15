@@ -19,6 +19,14 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
+import type {
+  McpBootstrapSuccess,
+  McpGetBoardTopResponse,
+  McpGetKeysResponse,
+  McpListBoardsResponse,
+  McpListGamesResponse,
+  McpSdkSnippetResponse,
+} from './contract';
 
 // ---------------------------------------------------------------------------
 // Build metadata
@@ -260,7 +268,7 @@ export function buildServer(config: RuntimeConfig): McpServer {
     'List all games owned by the authenticated developer. Returns each game with id, slug, name, and createdAt. Use this first to orient before creating new resources or inspecting an existing game. If the result is an empty list and the developer wants to add a leaderboard, call bootstrap_leaderboard next.',
     {},
     async () => {
-      const r = await api.get<{ games: unknown[] }>('/v1/mcp/games');
+      const r = await api.get<McpListGamesResponse>('/v1/mcp/games');
       return r.ok ? ok(r.data) : failFromApi(r);
     },
   );
@@ -272,7 +280,7 @@ export function buildServer(config: RuntimeConfig): McpServer {
       gameId: z.string().uuid().describe('UUID of the game to list boards for'),
     },
     async ({ gameId }) => {
-      const r = await api.get<{ boards: unknown[] }>(`/v1/mcp/games/${gameId}/boards`);
+      const r = await api.get<McpListBoardsResponse>(`/v1/mcp/games/${gameId}/boards`);
       return r.ok ? ok(r.data) : failFromApi(r);
     },
   );
@@ -284,7 +292,7 @@ export function buildServer(config: RuntimeConfig): McpServer {
       gameId: z.string().uuid().describe('UUID of the game to fetch keys for'),
     },
     async ({ gameId }) => {
-      const r = await api.get<{ keys: unknown[] }>(`/v1/mcp/games/${gameId}/keys`);
+      const r = await api.get<McpGetKeysResponse>(`/v1/mcp/games/${gameId}/keys`);
       return r.ok ? ok(r.data) : failFromApi(r);
     },
   );
@@ -303,7 +311,7 @@ export function buildServer(config: RuntimeConfig): McpServer {
         .describe('Number of entries to return (1–100). Defaults to 10.'),
     },
     async ({ boardId, n }) => {
-      const r = await api.get<{ entries: unknown[] }>(`/v1/mcp/boards/${boardId}/top?n=${n}`);
+      const r = await api.get<McpGetBoardTopResponse>(`/v1/mcp/boards/${boardId}/top?n=${n}`);
       return r.ok ? ok(r.data) : failFromApi(r);
     },
   );
@@ -316,7 +324,7 @@ export function buildServer(config: RuntimeConfig): McpServer {
       boardId: z.string().uuid().describe('UUID of the board to target in the snippet'),
     },
     async ({ gameId, boardId }) => {
-      const r = await api.post<{ snippet: string }>('/v1/mcp/sdk-snippet', { gameId, boardId });
+      const r = await api.post<McpSdkSnippetResponse>('/v1/mcp/sdk-snippet', { gameId, boardId });
       return r.ok ? ok(r.data) : failFromApi(r);
     },
   );
@@ -354,12 +362,7 @@ export function buildServer(config: RuntimeConfig): McpServer {
           .describe('Score type: integer (default), duration_ms (time trials), or float'),
       },
       async (input) => {
-        const r = await api.post<{
-          gameId: string;
-          boardId: string;
-          publicKey: string;
-          sdkSnippet: string;
-        }>('/v1/mcp/bootstrap', input);
+        const r = await api.post<McpBootstrapSuccess>('/v1/mcp/bootstrap', input);
         return r.ok ? ok(r.data) : failFromApi(r);
       },
     );
