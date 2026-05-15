@@ -1,0 +1,22 @@
+name: Feature request
+description: Suggest a new tool, flag, or behavior.
+labels: ['enhancement', 'triage']
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What's the friction?
+      description: 'Describe the developer pain you hit. "I wanted to do X and couldn't" beats "please add Y."'
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would the ideal experience look like?
+      description: 'A tool name + signature, a flag, or the words you wish you could say to your AI assistant.'
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Workarounds you've considered

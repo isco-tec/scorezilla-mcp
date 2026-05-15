@@ -1,0 +1,35 @@
+version: 2
+updates:
+  # npm — keeps @modelcontextprotocol/sdk, zod, and devDeps current.
+  # MCP spec moves; Anthropic ships new SDK revs every few weeks. Without
+  # automated bumps we'll silently fall a major behind.
+  - package-ecosystem: 'npm'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+      day: 'monday'
+    open-pull-requests-limit: 5
+    labels:
+      - 'dependencies'
+    groups:
+      # Group dev tooling so we don't get five separate PRs every Monday.
+      dev-tooling:
+        dependency-type: 'development'
+        update-types:
+          - 'minor'
+          - 'patch'
+      # MCP SDK + zod stay separate so they show up clearly in the queue.
+      mcp-sdk:
+        patterns:
+          - '@modelcontextprotocol/*'
+
+  # GitHub Actions — pinned versions in workflows. Same rationale: drift
+  # left unattended turns into "we still use Node 18" embarrassment.
+  - package-ecosystem: 'github-actions'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+      day: 'monday'
+    open-pull-requests-limit: 3
+    labels:
+      - 'ci'

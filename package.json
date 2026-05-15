@@ -1,0 +1,56 @@
+{
+  "name": "scorezilla-mcp",
+  "version": "0.1.0-next.0",
+  "description": "Official MCP server for Scorezilla — add a leaderboard to your game from your AI coding assistant.",
+  "license": "MIT",
+  "author": "isco-tec",
+  "homepage": "https://scorezilla.dev/mcp",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/isco-tec/scorezilla-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/isco-tec/scorezilla-mcp/issues"
+  },
+  "type": "module",
+  "bin": {
+    "scorezilla-mcp": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "changeset": "changeset",
+    "release": "changeset publish",
+    "prepublishOnly": "pnpm run build"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.27.0",
+    "@types/node": "^22.10.0",
+    "tsup": "^8.3.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "leaderboard",
+    "scorezilla",
+    "claude-code",
+    "cursor",
+    "ai-coding-assistant",
+    "game-dev"
+  ]
+}

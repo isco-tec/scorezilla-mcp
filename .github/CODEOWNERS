@@ -1,0 +1,3 @@
+# Every PR routes to the maintainer for review. As the contributor list
+# grows, scope this to specific paths (e.g. `src/ @core-maintainers`).
+* @isco-tec

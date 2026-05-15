@@ -1,0 +1,53 @@
+name: Bug report
+description: Something's not working as documented.
+labels: ['bug', 'triage']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for filing a bug. The more concrete the repro, the faster we can fix it.
+  - type: input
+    id: version
+    attributes:
+      label: scorezilla-mcp version
+      description: 'Run `npx scorezilla-mcp@latest --version` and paste the output.'
+      placeholder: 'e.g. 0.1.0-next.3'
+    validations:
+      required: true
+  - type: input
+    id: node
+    attributes:
+      label: Node version
+      description: 'Run `node --version`.'
+      placeholder: 'e.g. v20.18.0'
+    validations:
+      required: true
+  - type: input
+    id: client
+    attributes:
+      label: MCP client
+      placeholder: 'e.g. Claude Code 1.5.0 / Cursor 0.42 / Continue.dev …'
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Repro
+      description: 'Exact tool call(s) the AI made, and what happened vs. what you expected.'
+      placeholder: |
+        1. Asked Claude to "add a leaderboard"
+        2. It called bootstrap_leaderboard with …
+        3. Got error: …
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: stderr output
+      description: 'Anything the server printed to stderr. Redact any token values before pasting.'
+      render: shell
+  - type: markdown
+    attributes:
+      value: |
+        **Never paste your `SCOREZILLA_TOKEN` value.** If you suspect a token leaked, revoke it at
+        https://dashboard.scorezilla.dev/account/tokens before filing.
