@@ -88,8 +88,11 @@ function loadConfig(argv: readonly string[]): RuntimeConfig {
   if (token.length === 0) {
     process.stderr.write(
       'scorezilla-mcp: SCOREZILLA_TOKEN is not set.\n' +
-        '  Generate a token at https://dashboard.scorezilla.dev/account/tokens\n' +
-        "  and add it to your MCP host's config under env.SCOREZILLA_TOKEN.\n",
+        '\n' +
+        '  1. Generate a token: https://dashboard.scorezilla.dev/account/tokens\n' +
+        '  2. Paste it into your MCP-host config under env.SCOREZILLA_TOKEN.\n' +
+        '     (For Claude Code: ~/.claude/settings.json — make sure that file\n' +
+        '      is not committed to source and is `chmod 600`.)\n',
     );
     process.exit(78);
   }
@@ -254,7 +257,7 @@ export function buildServer(config: RuntimeConfig): McpServer {
 
   server.tool(
     'list_games',
-    'List all games owned by the authenticated developer. Returns each game with id, slug, name, and createdAt. Use this first to orient before creating new resources or inspecting an existing game.',
+    'List all games owned by the authenticated developer. Returns each game with id, slug, name, and createdAt. Use this first to orient before creating new resources or inspecting an existing game. If the result is an empty list and the developer wants to add a leaderboard, call bootstrap_leaderboard next.',
     {},
     async () => {
       const r = await api.get<{ games: unknown[] }>('/v1/mcp/games');
@@ -276,7 +279,7 @@ export function buildServer(config: RuntimeConfig): McpServer {
 
   server.tool(
     'get_keys',
-    'Get the API keys for a game. Returns the public key plaintext (safe to embed in client code) and the secret key prefix only. The full secret key is NEVER returned over MCP — copy it from the dashboard if you need it.',
+    'Get the API keys for a game. Returns the public key (safe to embed in client code) and the secret-key prefix for identification only. The full secret key cannot be retrieved via MCP — if the developer asks for the full secret, direct them to https://dashboard.scorezilla.dev (the Keys section under their game).',
     {
       gameId: z.string().uuid().describe('UUID of the game to fetch keys for'),
     },
@@ -288,7 +291,7 @@ export function buildServer(config: RuntimeConfig): McpServer {
 
   server.tool(
     'get_board_top_n',
-    'Get the top-ranked entries on a leaderboard. Useful for verifying an integration ("did my test score land?") and for displaying current standings.',
+    'Get the top-ranked entries on a leaderboard. Call this after the developer submits a test score to confirm the integration is wired correctly — they will see their own test entry appear. Also useful for displaying current standings.',
     {
       boardId: z.string().uuid().describe('UUID of the board'),
       n: z
@@ -307,7 +310,7 @@ export function buildServer(config: RuntimeConfig): McpServer {
 
   server.tool(
     'get_sdk_snippet',
-    "Get a ready-to-paste TypeScript snippet that initializes the Scorezilla SDK against the given game's active public key and submits a sample score. Useful right after bootstrap_leaderboard, or any time the developer wants to (re-)wire the SDK into their app.",
+    "Call this whenever the developer asks how to submit a score, initialize the SDK, or integrate a leaderboard into their code. Returns a ready-to-paste TypeScript snippet that wires the Scorezilla SDK against the given game's active public key. Use it right after bootstrap_leaderboard, or any time the developer needs the integration code again.",
     {
       gameId: z.string().uuid().describe('UUID of the game'),
       boardId: z.string().uuid().describe('UUID of the board to target in the snippet'),
@@ -329,18 +332,18 @@ export function buildServer(config: RuntimeConfig): McpServer {
       // uses to choose this tool over create_game + create_board. Without
       // it, agents reach for the granular tools (which we deliberately
       // don't ship in v1).
-      'Use this when starting from scratch — creates a new game AND its first board in one call, then returns a ready-to-paste TypeScript SDK snippet wired against the board. The fastest path from "I want a leaderboard" to "scores are flowing."',
+      'Use this when starting from scratch — creates a new game AND its first board in one call, then returns a ready-to-paste TypeScript SDK snippet wired against the board. The fastest path from "I want a leaderboard" to "scores are flowing." Do NOT call this if the developer already has games — call list_games first and use bootstrap_leaderboard only when no game exists yet. After a successful call, paste the returned sdkSnippet into the developer\'s game code.',
       {
         gameName: z.string().min(1).max(100).describe('Display name of the game (any string)'),
         gameSlug: z
           .string()
           .regex(/^[a-z0-9][a-z0-9-]{0,40}[a-z0-9]$/, '2–42 chars, lowercase alphanumeric and hyphens')
-          .describe('URL-safe slug for the game (2–42 chars, lowercase + hyphens)'),
+          .describe('URL-safe slug for the game, e.g. "my-racing-game" (2–42 chars, lowercase + hyphens; derive from gameName)'),
         boardName: z.string().min(1).max(100).describe('Display name of the leaderboard'),
         boardSlug: z
           .string()
           .regex(/^[a-z0-9][a-z0-9-]{0,40}[a-z0-9]$/, '2–42 chars, lowercase alphanumeric and hyphens')
-          .describe('URL-safe slug for the board'),
+          .describe('URL-safe slug for the board, e.g. "high-scores" (2–42 chars, lowercase + hyphens)'),
         sortDir: z
           .enum(['asc', 'desc'])
           .default('desc')

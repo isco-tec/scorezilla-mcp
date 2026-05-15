@@ -5,8 +5,6 @@
 
 Official Model Context Protocol (MCP) server for [Scorezilla](https://scorezilla.dev) — the easiest way to add a leaderboard to your game. Connect this server to your AI coding assistant (Claude Code, Cursor, Continue.dev, …) and ship a working leaderboard without leaving your editor.
 
-> **Status:** v0.1 preview on the `@next` dist-tag. Install with `npm install scorezilla-mcp@next` or use the config snippets below.
-
 ## What you can ask the AI to do
 
 - "Add a leaderboard to my game" → it bootstraps a game + board and pastes ready-to-run TypeScript SDK code into your project
@@ -16,6 +14,8 @@ Official Model Context Protocol (MCP) server for [Scorezilla](https://scorezilla
 Six tools total — five read-only, one that creates resources (`bootstrap_leaderboard`).
 
 ## Install + configure
+
+> ⚠️ **Status — v0.1 preview.** Published on the `@next` dist-tag only. The snippets below use `scorezilla-mcp@next`; once we ship a stable release the `@latest` tag will work too.
 
 ### 1. Get a token
 
@@ -38,6 +38,8 @@ Sign in at [dashboard.scorezilla.dev](https://dashboard.scorezilla.dev), open **
   }
 }
 ```
+
+> 🔒 **Keep `~/.claude/settings.json` private.** The token is stored in plaintext in that file. Make sure it's not committed to git (it's usually in your `.gitignore`), not synced to a public dotfiles repo, and not backed up to a shared location. On macOS/Linux: `chmod 600 ~/.claude/settings.json` so only your user can read it. If a token leaks, revoke it at [dashboard.scorezilla.dev/account/tokens](https://dashboard.scorezilla.dev/account/tokens).
 
 **Cursor** — open Settings → Features → MCP → Add new MCP server, then use the same `command` + `args` + `env` shape.
 
