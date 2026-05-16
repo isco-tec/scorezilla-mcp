@@ -22,6 +22,7 @@ const TEST_CONFIG = {
   baseUrl: 'https://api.example.test',
   token: 'mcp_live_test_token_synthetic_value_for_tests_only',
   readOnly: false,
+  betaToken: null,
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -130,6 +131,51 @@ describe('list_games', () => {
     const result = await client.callTool({ name: 'list_games', arguments: {} });
     const text = (result.content as Array<{ text: string }>)[0]!.text;
     expect(text).toContain('pong');
+  });
+});
+
+describe('beta token plumbing', () => {
+  it('sends X-MCP-Beta header when betaToken is configured', async () => {
+    let observedHeaders: Headers | undefined;
+    prepared.push({
+      matcher: (url) => url.endsWith('/v1/mcp/games'),
+      response: jsonResponse({ ok: true, games: [] }),
+    });
+    // Intercept to capture the actual headers sent.
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = vi.fn(async (input, init) => {
+      observedHeaders = new Headers(init?.headers);
+      return realFetch(input, init);
+    }) as typeof fetch;
+
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+    const server = buildServer({
+      ...TEST_CONFIG,
+      betaToken: 'beta-secret-value',
+    });
+    const client = new Client({ name: 'test-client', version: '0.0.0' }, { capabilities: {} });
+    await server.connect(serverTransport);
+    await client.connect(clientTransport);
+
+    await client.callTool({ name: 'list_games', arguments: {} });
+    expect(observedHeaders?.get('x-mcp-beta')).toBe('beta-secret-value');
+  });
+
+  it('omits X-MCP-Beta header when betaToken is null', async () => {
+    let observedHeaders: Headers | undefined;
+    prepared.push({
+      matcher: (url) => url.endsWith('/v1/mcp/games'),
+      response: jsonResponse({ ok: true, games: [] }),
+    });
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = vi.fn(async (input, init) => {
+      observedHeaders = new Headers(init?.headers);
+      return realFetch(input, init);
+    }) as typeof fetch;
+
+    const client = await connectedClient();
+    await client.callTool({ name: 'list_games', arguments: {} });
+    expect(observedHeaders?.has('x-mcp-beta')).toBe(false);
   });
 });
 
