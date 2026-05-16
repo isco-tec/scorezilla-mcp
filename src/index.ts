@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 /**
  * scorezilla-mcp — Official MCP server for Scorezilla.
  *
