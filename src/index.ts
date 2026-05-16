@@ -52,6 +52,12 @@ interface RuntimeConfig {
    *  Lets a dev wire the server into a shared/CI context with the
    *  promise that no resource-creating tools can fire. */
   readOnly: boolean;
+  /** Optional closed-beta token. When set, sent as `X-MCP-Beta` on every
+   *  API request. The API uses it to unlock the MCP namespace on prod
+   *  before the public switch is flipped. Read from
+   *  `SCOREZILLA_BETA_TOKEN` env var; absent is the common case once the
+   *  service is public. */
+  betaToken: string | null;
 }
 
 /**
@@ -105,7 +111,11 @@ function loadConfig(argv: readonly string[]): RuntimeConfig {
     process.exit(78);
   }
 
-  return { baseUrl, token, readOnly };
+  // Optional closed-beta header value. Pre-public-launch only.
+  const betaTokenRaw = process.env.SCOREZILLA_BETA_TOKEN ?? '';
+  const betaToken = betaTokenRaw.length > 0 ? betaTokenRaw : null;
+
+  return { baseUrl, token, readOnly, betaToken };
 }
 
 function printHelp(): void {
@@ -152,10 +162,14 @@ function buildApiClient(config: RuntimeConfig): ApiClient {
   // Headers built once at construction, spread per request so future
   // per-call additions (Idempotency-Key, etc.) don't bleed into the
   // shared closure.
+  // The closed-beta header (when set) is recognized by the API and
+  // unlocks the MCP namespace before the public release. Absent in
+  // the common case once the service is generally available.
   const baseHeaders: Readonly<Record<string, string>> = Object.freeze({
     accept: 'application/json',
     authorization: `Bearer ${config.token}`,
     'user-agent': `scorezilla-mcp/${VERSION}`,
+    ...(config.betaToken !== null ? { 'x-mcp-beta': config.betaToken } : {}),
   });
 
   async function request<T>(
@@ -400,7 +414,7 @@ async function main(): Promise<void> {
   // developer who's debugging see we connected without polluting the
   // protocol stream.
   process.stderr.write(
-    `scorezilla-mcp ${VERSION} ready (base=${config.baseUrl}${config.readOnly ? ', read-only' : ''})\n`,
+    `scorezilla-mcp ${VERSION} ready (base=${config.baseUrl}${config.readOnly ? ', read-only' : ''}${config.betaToken !== null ? ', beta' : ''})\n`,
   );
 }
 

@@ -69,6 +69,12 @@ scorezilla-mcp [--read-only] [--base-url=<url>] [--version] [--help]
 - `--read-only` — refuse to register `bootstrap_leaderboard`. Use this on shared/CI configs to guarantee the AI can't create resources.
 - `--base-url=<url>` — override the API origin. Defaults to `https://api.scorezilla.dev`. Useful for self-hosted or staging environments.
 
+## Env vars
+
+- `SCOREZILLA_TOKEN` — **required**. Bearer token issued at [dashboard.scorezilla.dev/account/tokens](https://dashboard.scorezilla.dev/account/tokens).
+- `SCOREZILLA_BASE_URL` — same as `--base-url`, but via env. CLI flag wins if both are set.
+- `SCOREZILLA_BETA_TOKEN` — pre-public closed-beta only. When set, sent as the `X-MCP-Beta` header on every API call to unlock the MCP namespace before the public switch is flipped. You'll only need this if a Scorezilla team member gave you a beta token; ignore otherwise.
+
 ## Tokens: how they work
 
 - Tokens are scoped to the developer who issued them and see every game associated with their account.
