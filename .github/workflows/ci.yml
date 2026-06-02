@@ -57,3 +57,9 @@ jobs:
       # and it broke for every install — this step is the guard.
       - name: Bin smoke test
         run: node dist/index.js --version
+
+      # Catch version drift between package.json and server.json before
+      # it reaches release.yml. Without this, a PR could merge with the
+      # Registry record pointing at a non-existent npm tarball.
+      - name: Version sync guard
+        run: pnpm release:check

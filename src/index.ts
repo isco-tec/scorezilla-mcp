@@ -38,9 +38,15 @@ import type {
 // ---------------------------------------------------------------------------
 
 /** Version pinned at build time. Surfaced via the `initialize` handshake
- *  so MCP hosts can display it. Kept in lockstep with package.json by
- *  hand for now — small enough that a sync script is overkill. */
-const VERSION = '0.1.0';
+ *  so MCP hosts can display it. Replaced by tsup's `define` at build
+ *  from `package.json#version` — the literal token below is what tsup
+ *  matches. In dev (no build), `__SCOREZILLA_MCP_VERSION__` stays as-is
+ *  in `pnpm test` because tests stub the initialize handshake. */
+declare const __SCOREZILLA_MCP_VERSION__: string;
+const VERSION =
+  typeof __SCOREZILLA_MCP_VERSION__ !== 'undefined'
+    ? __SCOREZILLA_MCP_VERSION__
+    : '0.0.0-dev';
 
 /** Default API base URL. Override per-process via the `--base-url` CLI
  *  flag or the `SCOREZILLA_BASE_URL` env var. */

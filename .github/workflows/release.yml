@@ -1,0 +1,201 @@
+name: Release
+
+# Handles BOTH halves of the Changesets release flow:
+#
+#   1. When unmerged changesets exist on `main` — opens (or updates) a
+#      "Version Packages" PR that bumps `package.json`, syncs
+#      `server.json` to match, updates `CHANGELOG.md`, and consumes the
+#      changeset files.
+#
+#   2. When that Version PR is merged (no unmerged changesets remain) —
+#      publishes to npm with `--provenance` and to the MCP Registry via
+#      `mcp-publisher login github-oidc`, then runs a post-publish smoke
+#      test that actually exercises the npx-installed binary.
+#
+# `changesets/action` detects which case applies.
+#
+# Prerequisites — must exist as repo secrets before the workflow's
+# publish branch can run:
+#   • NPM_TOKEN — npm Automation/Granular token (bypasses 2FA for CI
+#                  publishes) with write access to @scorezilla/mcp
+#   • GITHUB_TOKEN — automatically provided by GH Actions
+#
+# Pre-deploy setup steps (one-time):
+#   1. Generate npm Automation token at https://www.npmjs.com/settings/<user>/tokens
+#      Name it `scorezilla-mcp-ci-publish`, 365-day expiry.
+#   2. Add as repo secret named `NPM_TOKEN`.
+#   3. Create a GitHub Environment named `npm-publish` with required
+#      reviewers (Settings → Environments → New environment).
+#   4. mcp-publisher: nothing to configure. OIDC auth uses the
+#      `id-token: write` permission below + the namespace claim
+#      embedded in `server.json.name` (`io.github.isco-tec/mcp`).
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# A release is atomic-ish — don't let two runs race. We DO NOT cancel an
+# in-flight run; a half-completed release is worse than a queued one.
+concurrency:
+  group: scorezilla-mcp-release
+  cancel-in-progress: false
+
+permissions:
+  # Needed for: creating the GitHub release, pushing the Version PR.
+  contents: write
+  # Needed for: opening/updating the Version PR.
+  pull-requests: write
+  # Needed for: OIDC token used by `npm publish --provenance` AND by
+  # `mcp-publisher login github-oidc`.
+  id-token: write
+
+env:
+  PNPM_VERSION: '9'
+  # Enable provenance attestations — this repo is PUBLIC, so npm can
+  # verify the build origin against the sigstore bundle.
+  NPM_PUBLISH_WITH_PROVENANCE: '1'
+
+jobs:
+  release:
+    name: version or publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # `npm-publish` is a GitHub Environment with required reviewers.
+    # Every run of this job pauses for manual approval before any step
+    # executes — including the version-PR-opening branch, not just the
+    # actual npm publish. The cost: one click per main-push. The
+    # payoff: even a malicious workflow modification can't quietly
+    # publish a tarball; a human physically approves each run.
+    environment:
+      name: npm-publish
+      url: https://www.npmjs.com/package/@scorezilla/mcp
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Changesets needs full history to compute the changelog diff
+          # across versions. Fetch-depth 0 = full clone.
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          # Configures ~/.npmrc to authenticate against npm via NODE_AUTH_TOKEN.
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # ─── Hard gates — run BEFORE handing control to changesets/action.
+      # The publish branch of that action calls our publish.sh directly;
+      # any failure after that point ships a half-broken package. These
+      # checks duplicate ci.yml's PR gates intentionally — main can
+      # always merge a path the PR didn't exercise.
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
+
+      - name: Bin smoke test (built artifact)
+        run: node dist/index.js --version
+
+      - name: Version sync guard (package.json ↔ server.json)
+        run: pnpm release:check
+
+      # ─── The actual release step.
+      #
+      # `version:` script runs when there ARE unmerged changesets —
+      # changesets bumps package.json, our wrapper syncs server.json
+      # afterwards, and the action opens/updates the Version PR.
+      # `publish:` script runs when there are NO unmerged changesets
+      # and the tree's version is ahead of what's on npm — publishes
+      # to npm. The action wires NODE_AUTH_TOKEN automatically.
+      - name: Changesets — version PR or publish
+        id: changesets
+        uses: changesets/action@v1
+        with:
+          version: pnpm changeset:version
+          publish: bash scripts/publish.sh
+          title: 'chore(release): version @scorezilla/mcp'
+          commit: 'chore(release): version @scorezilla/mcp'
+          createGithubReleases: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      # ─── Registry sync — runs only when we actually published.
+      #
+      # Gated on publish.sh's own $GITHUB_OUTPUT signal, not on
+      # `changesets/action`'s `publishedPackages` — the latter
+      # empirically reports `[]` for our publishes (scorezilla-js#20).
+      - name: Install mcp-publisher
+        if: steps.changesets.outputs.published_name != '' && steps.changesets.outputs.published_version != ''
+        run: |
+          set -euo pipefail
+          # Pin a specific release for reproducibility. Bump
+          # MCP_PUBLISHER_VERSION when the Registry API rev requires
+          # a newer client; re-test locally first.
+          MCP_PUBLISHER_VERSION=1.7.9
+          TARBALL="mcp-publisher_linux_amd64.tar.gz"
+          URL="https://github.com/modelcontextprotocol/registry/releases/download/v${MCP_PUBLISHER_VERSION}/${TARBALL}"
+          curl -fsSL "$URL" -o /tmp/mcp-publisher.tar.gz
+          tar -xzf /tmp/mcp-publisher.tar.gz -C /tmp
+          sudo mv /tmp/mcp-publisher /usr/local/bin/mcp-publisher
+          mcp-publisher --help >/dev/null
+
+      - name: Publish to MCP Registry
+        if: steps.changesets.outputs.published_name != '' && steps.changesets.outputs.published_version != ''
+        run: bash scripts/publish-registry.sh
+
+      # ─── Smoke-confirm the new tarball is actually installable.
+      # Catches publish-time issues npm itself doesn't surface — e.g.
+      # files: array missing dist, bin perms wrong, broken main.
+      - name: Post-publish bin smoke test
+        if: steps.changesets.outputs.published_name != '' && steps.changesets.outputs.published_version != ''
+        env:
+          PUBLISHED_NAME: ${{ steps.changesets.outputs.published_name }}
+          PUBLISHED_VERSION: ${{ steps.changesets.outputs.published_version }}
+        run: |
+          set -euo pipefail
+          echo "Waiting for ${PUBLISHED_NAME}@${PUBLISHED_VERSION} on the registry..."
+          for i in $(seq 1 30); do
+            if npm view "${PUBLISHED_NAME}@${PUBLISHED_VERSION}" version > /dev/null 2>&1; then
+              echo "  → visible after ${i} attempt(s)"
+              break
+            fi
+            if [ "$i" = "30" ]; then
+              echo "  → did NOT appear within 30 attempts (~5 min); failing."
+              exit 1
+            fi
+            sleep 10
+          done
+          # Run the binary out of a freshly-installed tarball — the
+          # same path users hit. Catches the 0.1.0-next.0 class of bug
+          # (shebang, banner, etc.) one layer deeper than the build-
+          # time bin smoke test.
+          tmp=$(mktemp -d)
+          cd "$tmp"
+          npm init -y > /dev/null
+          npm install "${PUBLISHED_NAME}@${PUBLISHED_VERSION}" --no-audit --no-fund > /dev/null
+          # The binary name from the published package.json `bin` field.
+          BIN_OUT=$(./node_modules/.bin/scorezilla-mcp --version 2>&1)
+          echo "Binary reports: ${BIN_OUT}"
+          # Match the version that was published, not what npm reports
+          # (those should agree, but the binary is what users execute).
+          if ! echo "$BIN_OUT" | grep -qE "scorezilla-mcp ${PUBLISHED_VERSION}$"; then
+            echo "  → binary reported wrong version: '${BIN_OUT}' (expected scorezilla-mcp ${PUBLISHED_VERSION})"
+            exit 1
+          fi
+          cd - > /dev/null
+          rm -rf "$tmp"
+          echo "✓ Published artifact is installable and reports correct version"
