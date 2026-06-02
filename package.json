@@ -1,10 +1,14 @@
 {
-  "name": "scorezilla-mcp",
+  "name": "@scorezilla/mcp",
   "version": "0.1.0-next.0",
+  "mcpName": "io.github.isco-tec/mcp",
   "description": "Official MCP server for Scorezilla — add a leaderboard to your game from your AI coding assistant.",
   "license": "MIT",
   "author": "isco-tec",
   "homepage": "https://scorezilla.dev/mcp",
+  "publishConfig": {
+    "access": "public"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/isco-tec/scorezilla-mcp.git"
