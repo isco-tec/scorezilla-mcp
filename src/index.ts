@@ -40,7 +40,7 @@ import type {
 /** Version pinned at build time. Surfaced via the `initialize` handshake
  *  so MCP hosts can display it. Kept in lockstep with package.json by
  *  hand for now — small enough that a sync script is overkill. */
-const VERSION = '0.1.0-next.1';
+const VERSION = '0.1.0';
 
 /** Default API base URL. Override per-process via the `--base-url` CLI
  *  flag or the `SCOREZILLA_BASE_URL` env var. */
