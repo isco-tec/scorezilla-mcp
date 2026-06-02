@@ -1,6 +1,11 @@
-#!/usr/bin/env node
 /**
  * scorezilla-mcp — Official MCP server for Scorezilla.
+ *
+ * Note: the runnable `#!/usr/bin/env node` shebang is added at build
+ * time by tsup's `banner.js` setting (see tsup.config.ts) so the dist
+ * output always has it regardless of source state. Keeping the shebang
+ * here too would produce a duplicate `#!` at line 2 of dist/index.js,
+ * which node treats as a syntax error on execute.
  *
  * Exposes six tools that let AI coding assistants (Claude Code, Cursor,
  * Continue.dev, …) set up and inspect Scorezilla leaderboards on the
@@ -35,7 +40,7 @@ import type {
 /** Version pinned at build time. Surfaced via the `initialize` handshake
  *  so MCP hosts can display it. Kept in lockstep with package.json by
  *  hand for now — small enough that a sync script is overkill. */
-const VERSION = '0.1.0-next.0';
+const VERSION = '0.1.0-next.1';
 
 /** Default API base URL. Override per-process via the `--base-url` CLI
  *  flag or the `SCOREZILLA_BASE_URL` env var. */
