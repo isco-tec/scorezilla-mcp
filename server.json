@@ -1,0 +1,29 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.isco-tec/mcp",
+  "description": "Official MCP server for Scorezilla — add a leaderboard to your game from your AI coding assistant.",
+  "repository": {
+    "url": "https://github.com/isco-tec/scorezilla-mcp",
+    "source": "github"
+  },
+  "version": "0.1.0",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "@scorezilla/mcp",
+      "version": "0.1.0",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "SCOREZILLA_TOKEN",
+          "description": "MCP token for the Scorezilla API. Issue one at https://dashboard.scorezilla.dev/account/tokens. Format: mcp_live_<base62>.",
+          "isRequired": true,
+          "isSecret": true,
+          "format": "string"
+        }
+      ]
+    }
+  ]
+}

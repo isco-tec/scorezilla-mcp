@@ -7,3 +7,7 @@ dist/
 coverage/
 .vscode/
 .idea/
+
+# pnpm auto-generates this in single-package repos when it picks up
+# workspace probes from parent directories; we don't use workspaces here.
+pnpm-workspace.yaml
