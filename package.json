@@ -18,7 +18,7 @@
   },
   "type": "module",
   "bin": {
-    "scorezilla-mcp": "./dist/index.js"
+    "scorezilla-mcp": "dist/index.js"
   },
   "files": [
     "dist",

@@ -50,3 +50,10 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+      # Smoke-test the built binary. Catches shebang regressions, banner
+      # mis-config, or any other failure that would ship a CLI that won't
+      # start under `npx`. We shipped 0.1.0-next.0 with a duplicate shebang
+      # and it broke for every install — this step is the guard.
+      - name: Bin smoke test
+        run: node dist/index.js --version
