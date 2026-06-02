@@ -15,7 +15,7 @@ Six tools total — five read-only, one that creates resources (`bootstrap_leade
 
 ## Install + configure
 
-> ⚠️ **Status — v0.1 preview.** Published on the `@next` dist-tag only. The snippets below use `@scorezilla/mcp@next`; once we ship a stable release the `@latest` tag will work too.
+> **Status — v0.1.0 (initial release).** Published on the `@latest` dist-tag. The API surface (six tools, auth, env vars, CLI flags) is stable within `0.1.x`; `0.2.x` and beyond may include breaking changes per pre-1.0 semver convention.
 
 ### 1. Get a token
 
@@ -30,7 +30,7 @@ Sign in at [dashboard.scorezilla.dev](https://dashboard.scorezilla.dev), open **
   "mcpServers": {
     "scorezilla": {
       "command": "npx",
-      "args": ["-y", "@scorezilla/mcp@next"],
+      "args": ["-y", "@scorezilla/mcp"],
       "env": {
         "SCOREZILLA_TOKEN": "mcp_live_…"
       }
@@ -43,7 +43,7 @@ Sign in at [dashboard.scorezilla.dev](https://dashboard.scorezilla.dev), open **
 
 **Cursor** — open Settings → Features → MCP → Add new MCP server, then use the same `command` + `args` + `env` shape.
 
-**Anything else MCP-compatible** — point your client at `npx -y @scorezilla/mcp@next` with `SCOREZILLA_TOKEN` set in the environment.
+**Anything else MCP-compatible** — point your client at `npx -y @scorezilla/mcp` with `SCOREZILLA_TOKEN` set in the environment.
 
 ### 3. Ask away
 
