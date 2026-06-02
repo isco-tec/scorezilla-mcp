@@ -87,6 +87,20 @@ scorezilla-mcp [--read-only] [--base-url=<url>] [--version] [--help]
 - Node ≥ 20
 - A network path to `https://api.scorezilla.dev`
 
+## Releasing
+
+Releases are CI-driven and require an approval click in the `npm-publish` GitHub Environment. The full flow:
+
+1. **Author a changeset** locally: `pnpm changeset` — describes what changed and the bump type. Commit the file under `.changeset/`.
+2. **Merge to main.** `.github/workflows/release.yml` runs and opens a "chore(release): version @scorezilla/mcp" PR that bumps `package.json`, syncs `server.json` (the MCP Registry manifest) via `scripts/sync-server-json-version.mjs`, and updates `CHANGELOG.md`.
+3. **Merge the version PR.** The same workflow then publishes:
+   - npm tarball with `--provenance` (verifiable build attestation via GH OIDC + sigstore)
+   - MCP Registry record via `mcp-publisher login github-oidc` → `mcp-publisher publish`
+   - Post-publish smoke test that installs the published tarball and runs the binary
+4. **Pre-flight guards** that run before publish: typecheck, test, build, bin smoke (`node dist/index.js --version`), and `release:check` (asserts `package.json` and `server.json` versions agree).
+
+Manual publishes from a developer terminal still work (`bash scripts/publish.sh`) but aren't the path CI takes — they skip provenance and approval gates. Use only for one-off recovery.
+
 ## Issues / feedback
 
 [GitHub Issues](https://github.com/isco-tec/scorezilla-mcp/issues).

@@ -30,8 +30,10 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "changeset": "changeset",
-    "release": "changeset publish",
-    "prepublishOnly": "pnpm run build"
+    "changeset:version": "changeset version && node scripts/sync-server-json-version.mjs && pnpm install --lockfile-only",
+    "release": "bash scripts/publish.sh",
+    "release:check": "node scripts/check-version-sync.mjs",
+    "prepublishOnly": "pnpm run build && pnpm run release:check"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
