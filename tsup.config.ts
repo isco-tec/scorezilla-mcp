@@ -20,6 +20,12 @@ export default defineConfig({
   clean: true,
   splitting: false,
   sourcemap: true,
+  // Minify the bundled output. Cold-start cost via `npx -y` is the
+  // dominant UX cost for MCP servers (the host spawns the binary
+  // every session), and a ~50% smaller tarball means fewer bytes
+  // over the wire and faster parse. Sourcemaps stay full-fidelity
+  // for debugging.
+  minify: true,
   // Bundle dependencies into a single output — keeps `npx` startup
   // fast and avoids a node_modules dance on first run.
   noExternal: ['@modelcontextprotocol/sdk', 'zod'],
