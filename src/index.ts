@@ -180,6 +180,12 @@ function buildApiClient(config: RuntimeConfig): ApiClient {
     accept: 'application/json',
     authorization: `Bearer ${config.token}`,
     'user-agent': `scorezilla-mcp/${VERSION}`,
+    // Server captures this header on every MCP-path log line so ops
+    // can attribute traffic + errors to specific client builds (#109
+    // Part B). User-Agent already carries the version but is parsed
+    // less consistently downstream; a dedicated header is cheaper to
+    // index and immune to UA-rewriting middleware.
+    'x-mcp-client-version': VERSION,
     ...(config.betaToken !== null ? { 'x-mcp-beta': config.betaToken } : {}),
   });
 
