@@ -138,7 +138,18 @@ jobs:
       # Gated on publish.sh's own $GITHUB_OUTPUT signal, not on
       # `changesets/action`'s `publishedPackages` — the latter
       # empirically reports `[]` for our publishes (scorezilla-js#20).
-      - name: Install mcp-publisher
+      # ─── cosign — sigstore verifier. Installed only when we have a
+      # publish to do. The upstream `modelcontextprotocol/registry`
+      # repo signs every release artifact with sigstore; this step
+      # verifies the binary we're about to run is the one that came
+      # out of their CI, not a substituted artifact.
+      - name: Install cosign
+        if: steps.changesets.outputs.published_name != '' && steps.changesets.outputs.published_version != ''
+        uses: sigstore/cosign-installer@d7d6bc7722e3daa8354c50bcb52f4837da5e9b6a # v3.8.1
+        with:
+          cosign-release: 'v2.4.1'
+
+      - name: Install mcp-publisher (with sigstore verification)
         if: steps.changesets.outputs.published_name != '' && steps.changesets.outputs.published_version != ''
         run: |
           set -euo pipefail
@@ -147,8 +158,24 @@ jobs:
           # a newer client; re-test locally first.
           MCP_PUBLISHER_VERSION=1.7.9
           TARBALL="mcp-publisher_linux_amd64.tar.gz"
-          URL="https://github.com/modelcontextprotocol/registry/releases/download/v${MCP_PUBLISHER_VERSION}/${TARBALL}"
-          curl -fsSL "$URL" -o /tmp/mcp-publisher.tar.gz
+          BASE_URL="https://github.com/modelcontextprotocol/registry/releases/download/v${MCP_PUBLISHER_VERSION}"
+
+          # Download the tarball AND its sigstore bundle.
+          curl -fsSL "${BASE_URL}/${TARBALL}" -o /tmp/mcp-publisher.tar.gz
+          curl -fsSL "${BASE_URL}/${TARBALL}.sigstore.json" -o /tmp/mcp-publisher.tar.gz.sigstore.json
+
+          # Verify the tarball against the bundle BEFORE extracting.
+          # Identity regex pins the certificate to the upstream
+          # registry repo's GitHub Actions OIDC identity — any other
+          # signer (a malicious tag from a different repo, a leaked
+          # cosign key, etc.) fails verification and the publish stops.
+          cosign verify-blob \
+            --bundle /tmp/mcp-publisher.tar.gz.sigstore.json \
+            --certificate-identity-regexp "^https://github.com/modelcontextprotocol/registry/" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            /tmp/mcp-publisher.tar.gz
+
+          # Verified — safe to extract and install.
           tar -xzf /tmp/mcp-publisher.tar.gz -C /tmp
           sudo mv /tmp/mcp-publisher /usr/local/bin/mcp-publisher
           mcp-publisher --help >/dev/null
