@@ -1,0 +1,18 @@
+# Keep the build context minimal and reproducible. The build stage runs
+# a clean `pnpm install` + `pnpm build`, so host-side installs and build
+# outputs must never leak in.
+node_modules
+dist
+coverage
+.git
+.github
+.changeset
+test
+scripts
+*.md
+.env
+.env.*
+.DS_Store
+*.log
+.vscode
+.idea
