@@ -34,6 +34,14 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      registry_resync:
+        description: >-
+          Re-publish the CURRENT server.json version to the MCP Registry
+          without an npm publish. Use to recover when npm published but the
+          registry step failed (it's gated on the npm-publish signal otherwise).
+        type: boolean
+        default: false
 
 # A release is atomic-ish — don't let two runs race. We DO NOT cancel an
 # in-flight run; a half-completed release is worse than a queued one.
@@ -144,13 +152,17 @@ jobs:
       # verifies the binary we're about to run is the one that came
       # out of their CI, not a substituted artifact.
       - name: Install cosign
-        if: steps.changesets.outputs.published_name != '' && steps.changesets.outputs.published_version != ''
+        if: (steps.changesets.outputs.published_name != '' && steps.changesets.outputs.published_version != '') || github.event.inputs.registry_resync == 'true'
         uses: sigstore/cosign-installer@d7d6bc7722e3daa8354c50bcb52f4837da5e9b6a # v3.8.1
         with:
-          cosign-release: 'v2.4.1'
+          # v2.6.0+ is required for `--new-bundle-format`: mcp-publisher's
+          # release bundle is the Sigstore protobuf bundle (v0.3+json), which
+          # older cosign can't read ("bundle does not contain cert"). v2.6.3 is
+          # the current security-patched v2.x (GHSA-w6c6-c85g-mmv6).
+          cosign-release: 'v2.6.3'
 
       - name: Install mcp-publisher (with sigstore verification)
-        if: steps.changesets.outputs.published_name != '' && steps.changesets.outputs.published_version != ''
+        if: (steps.changesets.outputs.published_name != '' && steps.changesets.outputs.published_version != '') || github.event.inputs.registry_resync == 'true'
         run: |
           set -euo pipefail
           # Pin a specific release for reproducibility. Bump
@@ -170,6 +182,7 @@ jobs:
           # signer (a malicious tag from a different repo, a leaked
           # cosign key, etc.) fails verification and the publish stops.
           cosign verify-blob \
+            --new-bundle-format \
             --bundle /tmp/mcp-publisher.tar.gz.sigstore.json \
             --certificate-identity-regexp "^https://github.com/modelcontextprotocol/registry/" \
             --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
@@ -181,14 +194,14 @@ jobs:
           mcp-publisher --help >/dev/null
 
       - name: Publish to MCP Registry
-        if: steps.changesets.outputs.published_name != '' && steps.changesets.outputs.published_version != ''
+        if: (steps.changesets.outputs.published_name != '' && steps.changesets.outputs.published_version != '') || github.event.inputs.registry_resync == 'true'
         run: bash scripts/publish-registry.sh
 
       # ─── Smoke-confirm the new tarball is actually installable.
       # Catches publish-time issues npm itself doesn't surface — e.g.
       # files: array missing dist, bin perms wrong, broken main.
       - name: Post-publish bin smoke test
-        if: steps.changesets.outputs.published_name != '' && steps.changesets.outputs.published_version != ''
+        if: (steps.changesets.outputs.published_name != '' && steps.changesets.outputs.published_version != '') || github.event.inputs.registry_resync == 'true'
         env:
           PUBLISHED_NAME: ${{ steps.changesets.outputs.published_name }}
           PUBLISHED_VERSION: ${{ steps.changesets.outputs.published_version }}

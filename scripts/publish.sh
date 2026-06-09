@@ -48,6 +48,18 @@ else
   echo "Provenance: DISABLED (set NPM_PUBLISH_WITH_PROVENANCE=1 to enable)"
 fi
 
+# Idempotent guard: if this exact version is already on npm, skip the
+# publish rather than letting `npm publish` 403 (set -e would abort the
+# whole release). This makes the job safe to RE-RUN — e.g. when npm
+# published but a later step (MCP Registry sync) failed and we re-run to
+# recover. We deliberately do NOT emit the `published` sentinel on the
+# skip path, so a plain re-run doesn't re-fire downstream publish steps;
+# registry recovery uses the explicit `registry_resync` dispatch input.
+if npm view "@scorezilla/mcp@${VERSION}" version >/dev/null 2>&1; then
+  echo "@scorezilla/mcp@${VERSION} is already on npm — skipping publish (idempotent re-run)."
+  exit 0
+fi
+
 echo "Publishing @scorezilla/mcp@${VERSION} under npm dist-tag: ${TAG}"
 
 # `npm publish` rather than `pnpm publish` — changesets/action's
