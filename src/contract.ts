@@ -80,14 +80,150 @@ export interface McpGetKeysResponse extends McpOk {
 }
 
 // ---------------------------------------------------------------------------
-// POST /v1/mcp/bootstrap
+// POST /v1/mcp/bootstrap + POST /v1/mcp/sdk-snippet — integration axes
+//
+// Mirrors apps/api/src/mcp/contract.ts (ADRs 0002/0003/0004). The const
+// arrays are the runtime-iterable source of truth the tool schemas build
+// their Zod enums from (src/index.ts), so the wire enum and the validator
+// can't drift inside this repo.
 // ---------------------------------------------------------------------------
+
+/**
+ * Player attribution strategy for the generated snippet (ADR 0003).
+ * - `anonymous`            — SDK mints a local UUID; no prompt, no PII (default).
+ * - `prompted_local`       — One-time prompt, saved to localStorage.
+ * - `auth_provider`        — OAuth sign-in (requires `authProvider`).
+ * - `server_authoritative` — Game server attaches the playerId (requires a
+ *                            server-mediated `hostingPattern`).
+ * - `custom_callback`      — Dev-supplied async function returning the playerId.
+ */
+export type McpPlayerIdentityStrategy =
+  | 'anonymous'
+  | 'prompted_local'
+  | 'auth_provider'
+  | 'server_authoritative'
+  | 'custom_callback';
+
+export const MCP_IDENTITY_STRATEGIES = [
+  'anonymous',
+  'prompted_local',
+  'auth_provider',
+  'server_authoritative',
+  'custom_callback',
+] as const satisfies readonly McpPlayerIdentityStrategy[];
+
+/**
+ * OAuth / app-auth provider for `playerIdentityStrategy: 'auth_provider'`.
+ * `supabase`/`clerk`/`auth0`/`firebase` are the app-auth platforms whose JWTs
+ * the generated secure-submit endpoint can verify server-side; `google` ships
+ * a browser helper today; `custom` is the escape hatch.
+ */
+export type McpAuthProvider =
+  | 'google'
+  | 'github'
+  | 'apple'
+  | 'discord'
+  | 'supabase'
+  | 'clerk'
+  | 'auth0'
+  | 'firebase'
+  | 'custom';
+
+export const MCP_AUTH_PROVIDERS = [
+  'google',
+  'github',
+  'apple',
+  'discord',
+  'supabase',
+  'clerk',
+  'auth0',
+  'firebase',
+  'custom',
+] as const satisfies readonly McpAuthProvider[];
+
+/** App-auth platforms with a built-in `scorezilla/server` JWT verifier. */
+export const MCP_VERIFIABLE_AUTH_PROVIDERS = [
+  'supabase',
+  'clerk',
+  'auth0',
+  'firebase',
+] as const satisfies readonly McpAuthProvider[];
+
+export type McpVerifiableAuthProvider = (typeof MCP_VERIFIABLE_AUTH_PROVIDERS)[number];
+
+/**
+ * Hosting / key strategy (ADR 0004).
+ * - `client_only`        — Browser holds pk_*; simplest; no anti-cheat (default).
+ * - `client_with_server` — Game server holds sk_*, validates + signs; higher
+ *                          integrity (this is the anti-cheat path).
+ * - `server_only`        — Server reads/writes + renders SSR; max integrity;
+ *                          no widget.
+ */
+export type McpHostingPattern = 'client_only' | 'client_with_server' | 'server_only';
+
+export const MCP_HOSTING_PATTERNS = [
+  'client_only',
+  'client_with_server',
+  'server_only',
+] as const satisfies readonly McpHostingPattern[];
+
+/**
+ * Language for the server-side snippet. Required for `server_only`; optional
+ * for `client_with_server` (defaults to `typescript`, which gets the turnkey
+ * `createScoreSubmitHandler` endpoint). Non-TS languages return a best-effort
+ * snippet plus a "coming soon" note.
+ */
+export type McpServerLanguage = 'typescript' | 'python' | 'go' | 'csharp';
+
+export const MCP_SERVER_LANGUAGES = [
+  'typescript',
+  'python',
+  'go',
+  'csharp',
+] as const satisfies readonly McpServerLanguage[];
+
+/**
+ * Per-axis integration snippets (ADR 0002). Returned together so the AI sees
+ * both options. `widget` is the drop-in HTML embed (null for `server_only`);
+ * `sdk` is the framework/language-specific code (always present).
+ */
+export interface McpSnippetBundle {
+  widget: string | null;
+  sdk: string;
+}
 
 export interface McpBootstrapSuccess extends McpOk {
   gameId: string;
   boardId: string;
   publicKey: string;
+  /**
+   * @deprecated since 2026-05-17 (ADR 0002). Use `snippets.sdk`. Kept as an
+   * alias during the transition window; the API still returns it.
+   */
   sdkSnippet: string;
+  /** Per-axis snippet bundle (widget + sdk). Prefer this. */
+  snippets: McpSnippetBundle;
+  /** Plain-English guidance (widget vs SDK, identity tradeoffs, hosting
+   *  pattern) for the assistant to relay or use as a tiebreaker. */
+  recommendation: string;
+}
+
+/**
+ * Complete-failure error codes for POST /v1/mcp/bootstrap (game not created).
+ * `incompatible_axes` = the identity + hosting combination is invalid (e.g.
+ * `server_authoritative` needs a server-mediated hosting pattern).
+ */
+export type McpBootstrapErrorCode =
+  | 'slug_taken_active'
+  | 'slug_taken_reserved'
+  | 'incompatible_axes'
+  | 'invalid_input'
+  | 'invalid_json';
+
+export interface McpBootstrapError {
+  ok: false;
+  error: McpBootstrapErrorCode;
+  message?: string;
 }
 
 export interface McpBootstrapPartialFailure {
@@ -101,6 +237,13 @@ export interface McpBootstrapPartialFailure {
     boardCreated: boolean;
   };
 }
+
+/** Tagged union of every POST /v1/mcp/bootstrap response. Narrow on `ok`
+ *  first, then on `error`. */
+export type McpBootstrapResponse =
+  | McpBootstrapSuccess
+  | McpBootstrapError
+  | McpBootstrapPartialFailure;
 
 // ---------------------------------------------------------------------------
 // GET /v1/mcp/boards/:boardId/top

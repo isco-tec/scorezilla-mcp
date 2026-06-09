@@ -15,7 +15,7 @@ Six tools total — five read-only, one that creates resources (`bootstrap_leade
 
 ## Install + configure
 
-> **Status — v0.1.0 (initial release).** Published on the `@latest` dist-tag. The API surface (six tools, auth, env vars, CLI flags) is stable within `0.1.x`; `0.2.x` and beyond may include breaking changes per pre-1.0 semver convention.
+> **Status — v0.2.0.** Published on the `@latest` dist-tag. `0.2.0` adds the integration-axis arguments (identity strategy, OAuth provider, hosting/anti-cheat pattern, server language) to `bootstrap_leaderboard` + `get_sdk_snippet`, so the assistant can generate the drop-in widget embed, the secure server-validated (anti-cheat) path, and OAuth identity — not just the default anonymous + client-only snippet. The tool surface (six tools, auth, env vars, CLI flags) is stable within `0.2.x` per pre-1.0 semver.
 
 ### 1. Get a token
 
@@ -57,8 +57,8 @@ In Claude Code or Cursor: _"Add a Scorezilla leaderboard to this game."_
 | `list_boards` | Lists leaderboards under a game. |
 | `get_keys` | Returns the public key (safe to embed) and the secret-key prefix. The full secret never leaves the dashboard. |
 | `get_board_top_n` | Returns the top entries on a board. The "is my integration working?" tool. |
-| `get_sdk_snippet` | Returns ready-to-paste TypeScript SDK init code targeting a specific board. |
-| `bootstrap_leaderboard` | Creates a new game + first board in one call, returns the SDK snippet. The 90-second-demo path. |
+| `get_sdk_snippet` | Returns ready-to-paste integration code for a board. Optional axis args tailor it: anonymous/OAuth identity, client-only vs. server-validated **anti-cheat**, and the server language (TS/Python/Go/C#). |
+| `bootstrap_leaderboard` | Creates a new game + first board in one call, then returns the **widget embed** + **SDK snippet** + a plain-English recommendation. Same optional axis args (anti-cheat, OAuth, server language). The 90-second-demo path. |
 
 ## Flags
 
