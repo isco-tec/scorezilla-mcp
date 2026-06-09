@@ -24,6 +24,12 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
+import {
+  MCP_AUTH_PROVIDERS,
+  MCP_HOSTING_PATTERNS,
+  MCP_IDENTITY_STRATEGIES,
+  MCP_SERVER_LANGUAGES,
+} from './contract';
 import type {
   McpBootstrapSuccess,
   McpGetBoardTopResponse,
@@ -275,6 +281,55 @@ function failFromApi(r: ApiFail) {
 }
 
 // ---------------------------------------------------------------------------
+// Integration-axis inputs (shared by bootstrap_leaderboard + get_sdk_snippet)
+// ---------------------------------------------------------------------------
+//
+// All optional — omitting every one yields the simplest anonymous +
+// client_only setup. Provided, they steer the generated snippet across the
+// three axes (ADRs 0002/0003/0004): WHO the player is, WHERE keys live (i.e.
+// whether there's real anti-cheat), and which language the server snippet is.
+// The Zod enums are built from the contract's const arrays so the wire enum
+// and the tool schema can't drift.
+
+const axisInputShape = {
+  playerIdentityStrategy: z
+    .enum(MCP_IDENTITY_STRATEGIES)
+    .optional()
+    .describe(
+      "How players are attributed. 'anonymous' (default) mints a local UUID, no PII; " +
+        "'prompted_local' asks once and saves to localStorage; 'auth_provider' uses OAuth " +
+        "(also set authProvider); 'server_authoritative' has the game server attach the " +
+        "playerId (needs hostingPattern client_with_server or server_only); 'custom_callback' " +
+        'for a dev-supplied function.',
+    ),
+  authProvider: z
+    .enum(MCP_AUTH_PROVIDERS)
+    .optional()
+    .describe(
+      "Required when playerIdentityStrategy is 'auth_provider'. supabase/clerk/auth0/firebase " +
+        'get a server-side JWT-verifying secure-submit endpoint (real anti-cheat); google ships ' +
+        'a browser helper; github/apple/discord are planned; custom is the escape hatch.',
+    ),
+  hostingPattern: z
+    .enum(MCP_HOSTING_PATTERNS)
+    .optional()
+    .describe(
+      "Integrity model. 'client_only' (default): the browser holds the public key — simplest, " +
+        "but NO anti-cheat. 'client_with_server': your server validates + signs scores — use this " +
+        "for competitive boards where cheating matters. 'server_only': server reads/writes and " +
+        'renders SSR HTML (max integrity, SEO-friendly, no widget).',
+    ),
+  serverLanguage: z
+    .enum(MCP_SERVER_LANGUAGES)
+    .optional()
+    .describe(
+      "Language for the server-side snippet. Required for hostingPattern 'server_only'; optional " +
+        "for 'client_with_server' (defaults to typescript, which gets the turnkey " +
+        'createScoreSubmitHandler endpoint). python/go/csharp return a best-effort snippet.',
+    ),
+};
+
+// ---------------------------------------------------------------------------
 // Server construction (exported for tests)
 // ---------------------------------------------------------------------------
 
@@ -306,9 +361,9 @@ export function buildServer(config: RuntimeConfig): McpServer {
 
   server.tool(
     'list_boards',
-    'List all leaderboards (boards) under a given game. Each board has its own ranking, sort direction, score kind, and retention policy.',
+    'List all leaderboards (boards) under a given game. Each board has its own id, slug, ranking (sortDir: desc = high-score-wins, asc = lowest-time-wins), score kind (integer / duration_ms / float), retention policy, and optional min/max score bounds. Call this to find a board\'s id before generating a snippet (get_sdk_snippet) or reading standings (get_board_top_n), or to show the developer what boards already exist under a game returned by list_games.',
     {
-      gameId: z.string().uuid().describe('UUID of the game to list boards for'),
+      gameId: z.string().uuid().describe('UUID of the game to list boards for (from list_games)'),
     },
     async ({ gameId }) => {
       const r = await api.get<McpListBoardsResponse>(`/v1/mcp/games/${gameId}/boards`);
@@ -318,9 +373,9 @@ export function buildServer(config: RuntimeConfig): McpServer {
 
   server.tool(
     'get_keys',
-    'Get the API keys for a game. Returns the public key (safe to embed in client code) and the secret-key prefix for identification only. The full secret key cannot be retrieved via MCP — if the developer asks for the full secret, direct them to https://dashboard.scorezilla.dev (the Keys section under their game).',
+    "Get a game's API keys. Returns, per key: kind ('public' | 'secret'), prefix, createdAt, and rotation/revocation timestamps. The PUBLIC key includes its full plaintext (it's safe to embed in client code). The SECRET key's plaintext is ALWAYS null over MCP — only its prefix is shown, for identification. Use this to retrieve the public key for a client_only integration, or to check which keys exist / have been revoked. If the developer needs the full SECRET key (for a client_with_server / server_only anti-cheat setup), direct them to https://dashboard.scorezilla.dev — the Keys section under their game — since it never leaves the dashboard.",
     {
-      gameId: z.string().uuid().describe('UUID of the game to fetch keys for'),
+      gameId: z.string().uuid().describe('UUID of the game to fetch keys for (from list_games)'),
     },
     async ({ gameId }) => {
       const r = await api.get<McpGetKeysResponse>(`/v1/mcp/games/${gameId}/keys`);
@@ -349,13 +404,14 @@ export function buildServer(config: RuntimeConfig): McpServer {
 
   server.tool(
     'get_sdk_snippet',
-    "Call this whenever the developer asks how to submit a score, initialize the SDK, or integrate a leaderboard into their code. Returns a ready-to-paste TypeScript snippet that wires the Scorezilla SDK against the given game's active public key. Use it right after bootstrap_leaderboard, or any time the developer needs the integration code again.",
+    "Call this whenever the developer asks how to submit a score, initialize the SDK, or integrate a leaderboard into their code — INCLUDING when they want a setup other than the default: anti-cheat (server-validated scores), OAuth player identity, or a non-TypeScript server. Returns a ready-to-paste integration snippet (the `snippet` field) tailored to the axis arguments. Omit the axis args for the simplest anonymous + client-only TypeScript setup; set hostingPattern='client_with_server' (+ a serverLanguage and/or auth provider) for the secure anti-cheat path. Use it right after bootstrap_leaderboard, or any time the developer needs the integration code again or wants to switch approach. (For the drop-in widget HTML embed, bootstrap_leaderboard returns it as snippets.widget.)",
     {
       gameId: z.string().uuid().describe('UUID of the game'),
       boardId: z.string().uuid().describe('UUID of the board to target in the snippet'),
+      ...axisInputShape,
     },
-    async ({ gameId, boardId }) => {
-      const r = await api.post<McpSdkSnippetResponse>('/v1/mcp/sdk-snippet', { gameId, boardId });
+    async (input) => {
+      const r = await api.post<McpSdkSnippetResponse>('/v1/mcp/sdk-snippet', input);
       return r.ok ? ok(r.data) : failFromApi(r);
     },
   );
@@ -371,7 +427,7 @@ export function buildServer(config: RuntimeConfig): McpServer {
       // uses to choose this tool over create_game + create_board. Without
       // it, agents reach for the granular tools (which we deliberately
       // don't ship in v1).
-      'Use this when starting from scratch — creates a new game AND its first board in one call, then returns a ready-to-paste TypeScript SDK snippet wired against the board. The fastest path from "I want a leaderboard" to "scores are flowing." Do NOT call this if the developer already has games — call list_games first and use bootstrap_leaderboard only when no game exists yet. After a successful call, paste the returned sdkSnippet into the developer\'s game code.',
+      'Use this when starting from scratch — creates a new game AND its first board in one call, then returns ready-to-paste integration code wired against the board. The fastest path from "I want a leaderboard" to "scores are flowing." Do NOT call this if the developer already has games — call list_games first and use bootstrap_leaderboard only when no game exists yet. The response includes `snippets.sdk` (framework/server code), `snippets.widget` (a themeable drop-in HTML embed; null for server_only), and a plain-English `recommendation` to relay to the developer — paste `snippets.sdk` (and/or `snippets.widget`) into their code. The optional axis args tailor the output: set hostingPattern=\'client_with_server\' for anti-cheat (server-validated scores), playerIdentityStrategy=\'auth_provider\' (+ authProvider) for OAuth identity, or serverLanguage for a non-TypeScript server. Omit them all for the simplest anonymous + client-only setup.',
       {
         gameName: z.string().min(1).max(100).describe('Display name of the game (any string)'),
         gameSlug: z
@@ -391,6 +447,7 @@ export function buildServer(config: RuntimeConfig): McpServer {
           .enum(['integer', 'duration_ms', 'float'])
           .default('integer')
           .describe('Score type: integer (default), duration_ms (time trials), or float'),
+        ...axisInputShape,
       },
       async (input) => {
         const r = await api.post<McpBootstrapSuccess>('/v1/mcp/bootstrap', input);

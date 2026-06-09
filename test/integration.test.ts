@@ -190,6 +190,8 @@ describe('bootstrap_leaderboard', () => {
         boardId: '22222222-2222-2222-2222-222222222222',
         publicKey: 'pk_pong_AbCdEf',
         sdkSnippet: fakeSnippet,
+        snippets: { widget: '<scorezilla-leaderboard board="…">', sdk: fakeSnippet },
+        recommendation: 'Use the widget for a drop-in embed, or snippets.sdk to render your own UI.',
       }),
     );
     const client = await connectedClient();
@@ -205,6 +207,79 @@ describe('bootstrap_leaderboard', () => {
     const text = (result.content as Array<{ text: string }>)[0]!.text;
     expect(text).toContain('pk_pong_AbCdEf');
     expect(text).toContain(fakeSnippet);
+    // The full bundle + recommendation reach the assistant.
+    expect(text).toContain('scorezilla-leaderboard');
+    expect(text).toContain('recommendation');
+  });
+
+  it('forwards the integration-axis args to the API', async () => {
+    let capturedBody: Record<string, unknown> | null = null;
+    prepared.push({
+      matcher: (url, init) => {
+        if (!url.endsWith('/v1/mcp/bootstrap')) return false;
+        capturedBody = init?.body ? JSON.parse(init.body as string) : null;
+        return true;
+      },
+      response: jsonResponse({
+        ok: true,
+        gameId: 'g',
+        boardId: 'b',
+        publicKey: 'pk_x',
+        sdkSnippet: 's',
+        snippets: { widget: null, sdk: 's' },
+        recommendation: 'r',
+      }),
+    });
+    const client = await connectedClient();
+    await client.callTool({
+      name: 'bootstrap_leaderboard',
+      arguments: {
+        gameName: 'Race',
+        gameSlug: 'race',
+        boardName: 'Times',
+        boardSlug: 'times',
+        playerIdentityStrategy: 'auth_provider',
+        authProvider: 'supabase',
+        hostingPattern: 'client_with_server',
+        serverLanguage: 'typescript',
+      },
+    });
+    expect(capturedBody).toMatchObject({
+      playerIdentityStrategy: 'auth_provider',
+      authProvider: 'supabase',
+      hostingPattern: 'client_with_server',
+      serverLanguage: 'typescript',
+    });
+  });
+});
+
+describe('get_sdk_snippet', () => {
+  it('forwards the integration-axis args to POST /v1/mcp/sdk-snippet', async () => {
+    let capturedBody: Record<string, unknown> | null = null;
+    prepared.push({
+      matcher: (url, init) => {
+        if (!url.endsWith('/v1/mcp/sdk-snippet')) return false;
+        capturedBody = init?.body ? JSON.parse(init.body as string) : null;
+        return true;
+      },
+      response: jsonResponse({ ok: true, snippet: '# python secure-submit handler' }),
+    });
+    const client = await connectedClient();
+    await client.callTool({
+      name: 'get_sdk_snippet',
+      arguments: {
+        gameId: '11111111-1111-4111-8111-111111111111',
+        boardId: '22222222-2222-4222-8222-222222222222',
+        hostingPattern: 'server_only',
+        serverLanguage: 'python',
+      },
+    });
+    expect(capturedBody).toMatchObject({
+      gameId: '11111111-1111-4111-8111-111111111111',
+      boardId: '22222222-2222-4222-8222-222222222222',
+      hostingPattern: 'server_only',
+      serverLanguage: 'python',
+    });
   });
 });
 
@@ -302,6 +377,11 @@ describe('contract shapes', () => {
       boardId: '22222222-2222-2222-2222-222222222222',
       publicKey: 'pk_pong_abc',
       sdkSnippet: "import { Scorezilla } from 'scorezilla';",
+      snippets: {
+        widget: '<scorezilla-leaderboard board="…">',
+        sdk: "import { Scorezilla } from 'scorezilla';",
+      },
+      recommendation: 'Widget for drop-in; SDK for custom UI.',
     } satisfies McpBootstrapSuccess;
     expectTypeOf(fixture).toMatchTypeOf<McpBootstrapSuccess>();
   });
