@@ -1,5 +1,18 @@
 # @scorezilla/mcp
 
+## 0.2.0
+
+### Minor Changes
+
+- [#32](https://github.com/isco-tec/scorezilla-mcp/pull/32) [`cce826b`](https://github.com/isco-tec/scorezilla-mcp/commit/cce826b9d68d8cb633425a069d7a4e15854ec5cd) Thanks [@isco-tec](https://github.com/isco-tec)! - Add integration-axis arguments to `bootstrap_leaderboard` and `get_sdk_snippet` (`playerIdentityStrategy`, `authProvider`, `hostingPattern`, `serverLanguage`), so the assistant can generate the full set of integrations — not just the default anonymous + client-only snippet:
+
+  - the drop-in **widget** HTML embed (`bootstrap_leaderboard` now returns `snippets.widget` + `snippets.sdk` + a plain-English `recommendation`)
+  - the **secure, server-validated (anti-cheat)** path (`hostingPattern: 'client_with_server' | 'server_only'`)
+  - **OAuth** player identity (`playerIdentityStrategy: 'auth_provider'` + an `authProvider`)
+  - non-TypeScript server snippets via `serverLanguage`
+
+  Syncs `src/contract.ts` to the current `/v1/mcp/*` API contract (axis enums, `McpSnippetBundle`, and the `snippets` + `recommendation` fields on the bootstrap response). The legacy `sdkSnippet` field is retained as a deprecated alias. Also enriches the `list_boards`/`get_keys` tool descriptions.
+
 ## 0.1.3
 
 ### Patch Changes
