@@ -201,7 +201,11 @@ jobs:
       # Catches publish-time issues npm itself doesn't surface — e.g.
       # files: array missing dist, bin perms wrong, broken main.
       - name: Post-publish bin smoke test
-        if: (steps.changesets.outputs.published_name != '' && steps.changesets.outputs.published_version != '') || github.event.inputs.registry_resync == 'true'
+        # Only after a REAL npm publish — it polls npm for the just-published
+        # version. A registry_resync has no `published_version` (the npm publish
+        # no-ops on an already-published version), so this step is intentionally
+        # NOT gated on it; the binary it would test is already on npm + verified.
+        if: steps.changesets.outputs.published_name != '' && steps.changesets.outputs.published_version != ''
         env:
           PUBLISHED_NAME: ${{ steps.changesets.outputs.published_name }}
           PUBLISHED_VERSION: ${{ steps.changesets.outputs.published_version }}
