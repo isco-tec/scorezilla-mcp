@@ -1,5 +1,16 @@
 # @scorezilla/mcp
 
+## 0.3.1
+
+### Patch Changes
+
+- [#39](https://github.com/isco-tec/scorezilla-mcp/pull/39) [`a22b1c0`](https://github.com/isco-tec/scorezilla-mcp/commit/a22b1c0c5f90339d30a3203d8008e4d0247b27cf) Thanks [@isco-tec](https://github.com/isco-tec)! - Harden the write tools (review follow-up):
+
+  - **Retry-safe writes**: `create_game`, `create_board`, and `mint_key` now send a content-derived `Idempotency-Key`, so a retried call dedupes server-side (5-minute window) instead of creating a duplicate — `mint_key` in particular replays the same key pair rather than minting a second one.
+  - **HTTPS-only base URL**: `--base-url` now rejects non-`https://` origins (except `http://localhost` for dev), so a poisoned base URL can't redirect the `SCOREZILLA_TOKEN` bearer to a plaintext/attacker origin.
+  - `create_board` / `mint_key` `gameId` is now validated as a UUID (consistent with the read tools) for a clearer first-pass error.
+  - `mint_key` description now notes the secret appears in the MCP host's transcript.
+
 ## 0.3.0
 
 ### Minor Changes
