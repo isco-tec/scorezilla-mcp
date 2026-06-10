@@ -157,7 +157,7 @@ describe('write tools', () => {
 
   it('create_board POSTs to the game-scoped path and returns the board', async () => {
     mockApi(
-      '/v1/mcp/games/g-existing/boards',
+      '/v1/mcp/games/11111111-1111-4111-8111-111111111111/boards',
       jsonResponse({
         ok: true,
         board: {
@@ -176,7 +176,7 @@ describe('write tools', () => {
     const client = await connectedClient(false);
     const result = await client.callTool({
       name: 'create_board',
-      arguments: { gameId: 'g-existing', name: 'THE VOID', slug: 'world-void' },
+      arguments: { gameId: '11111111-1111-4111-8111-111111111111', name: 'THE VOID', slug: 'world-void' },
     });
     const text = (result.content as Array<{ text: string }>)[0]!.text;
     expect(text).toContain('b-new');
@@ -185,7 +185,7 @@ describe('write tools', () => {
 
   it('mint_key POSTs to the keys path and returns pk_/sk_', async () => {
     mockApi(
-      '/v1/mcp/games/g-existing/keys',
+      '/v1/mcp/games/11111111-1111-4111-8111-111111111111/keys',
       jsonResponse({
         ok: true,
         publicKey: 'pk_neon_abc',
@@ -196,7 +196,7 @@ describe('write tools', () => {
     const client = await connectedClient(false);
     const result = await client.callTool({
       name: 'mint_key',
-      arguments: { gameId: 'g-existing' },
+      arguments: { gameId: '11111111-1111-4111-8111-111111111111' },
     });
     const text = (result.content as Array<{ text: string }>)[0]!.text;
     expect(text).toContain('pk_neon_abc');
@@ -205,7 +205,7 @@ describe('write tools', () => {
 
   it('create_board surfaces a 409 slug conflict as a tool error', async () => {
     mockApi(
-      '/v1/mcp/games/g-existing/boards',
+      '/v1/mcp/games/11111111-1111-4111-8111-111111111111/boards',
       jsonResponse(
         { ok: false, error: 'slug_taken', message: "A board with slug 'world-void' already exists" },
         409,
@@ -214,11 +214,29 @@ describe('write tools', () => {
     const client = await connectedClient(false);
     const result = await client.callTool({
       name: 'create_board',
-      arguments: { gameId: 'g-existing', name: 'X', slug: 'world-void' },
+      arguments: { gameId: '11111111-1111-4111-8111-111111111111', name: 'X', slug: 'world-void' },
     });
     expect((result as { isError?: boolean }).isError).toBe(true);
     const text = (result.content as Array<{ text: string }>)[0]!.text;
     expect(text).toContain('slug_taken');
+  });
+
+  it('sends a content-derived Idempotency-Key on write tools (retry-safe)', async () => {
+    prepared.push({
+      matcher: (url) => url.endsWith('/v1/mcp/games'),
+      response: jsonResponse({ ok: true, gameId: 'g1', slug: 'neon', name: 'Neon', createdAt: 1 }),
+    });
+    let observed: Headers | undefined;
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = vi.fn(async (input, init) => {
+      observed = new Headers(init?.headers);
+      return realFetch(input, init);
+    }) as typeof fetch;
+
+    const client = await connectedClient(false);
+    await client.callTool({ name: 'create_game', arguments: { name: 'Neon', slug: 'neon' } });
+    // Derived from the slug → a retry of the same create dedupes server-side.
+    expect(observed?.get('idempotency-key')).toBe('create_game:neon');
   });
 });
 

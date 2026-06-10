@@ -50,6 +50,7 @@ export interface McpBoardSummary {
   sortDir: 'asc' | 'desc';
   scoreKind: 'integer' | 'duration_ms' | 'float';
   retentionPolicy: 'all' | 'top_n' | 'rolling_30d';
+  retentionN: number | null;
   minScore: number | null;
   maxScore: number | null;
   createdAt: number;
@@ -67,6 +68,7 @@ export interface McpCreateGameResponse extends McpOk {
   gameId: string;
   slug: string;
   name: string;
+  createdAt: number;
 }
 
 export interface McpCreateBoardResponse extends McpOk {
