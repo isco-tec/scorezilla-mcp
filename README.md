@@ -11,11 +11,11 @@ Official Model Context Protocol (MCP) server for [Scorezilla](https://scorezilla
 - "What did my last test score rank?" → it reads your live leaderboard
 - "List my games" / "show me the boards on X" → it inspects what you already have
 
-Six tools total — five read-only, one that creates resources (`bootstrap_leaderboard`).
+Nine tools total — five read-only, four that create resources (`bootstrap_leaderboard`, `create_game`, `create_board`, `mint_key`).
 
 ## Install + configure
 
-> **Status — v0.2.0.** Published on the `@latest` dist-tag. `0.2.0` adds the integration-axis arguments (identity strategy, OAuth provider, hosting/anti-cheat pattern, server language) to `bootstrap_leaderboard` + `get_sdk_snippet`, so the assistant can generate the drop-in widget embed, the secure server-validated (anti-cheat) path, and OAuth identity — not just the default anonymous + client-only snippet. The tool surface (six tools, auth, env vars, CLI flags) is stable within `0.2.x` per pre-1.0 semver.
+> **Status — v0.3.0.** Published on the `@latest` dist-tag. `0.3.0` adds three create-only write tools — `create_game`, `create_board`, `mint_key` — so an agent can provision against an **existing** game (add boards, mint keys, create more games), not just bootstrap a brand-new one. `0.2.0` added the integration-axis arguments (identity strategy, OAuth provider, hosting/anti-cheat pattern, server language) to `bootstrap_leaderboard` + `get_sdk_snippet`. Destructive ops (edit/delete, key revocation) remain dashboard-only by design.
 
 ### 1. Get a token
 
@@ -59,6 +59,9 @@ In Claude Code or Cursor: _"Add a Scorezilla leaderboard to this game."_
 | `get_board_top_n` | Returns the top entries on a board. The "is my integration working?" tool. |
 | `get_sdk_snippet` | Returns ready-to-paste integration code for a board. Optional axis args tailor it: anonymous/OAuth identity, client-only vs. server-validated **anti-cheat**, and the server language (TS/Python/Go/C#). |
 | `bootstrap_leaderboard` | Creates a new game + first board in one call, then returns the **widget embed** + **SDK snippet** + a plain-English recommendation. Same optional axis args (anti-cheat, OAuth, server language). The 90-second-demo path. |
+| `create_game` | Creates a new (empty) game. Use when a game already exists (so `bootstrap_leaderboard` would conflict) or you want another. |
+| `create_board` | Adds a leaderboard board to an **existing** game (by `gameId`), with full options (sortDir, scoreKind, retention, bounds). |
+| `mint_key` | Mints a fresh public/secret key pair for an existing game. The secret is shown once. |
 
 ## Flags
 
@@ -66,7 +69,7 @@ In Claude Code or Cursor: _"Add a Scorezilla leaderboard to this game."_
 scorezilla-mcp [--read-only] [--base-url=<url>] [--version] [--help]
 ```
 
-- `--read-only` — refuse to register `bootstrap_leaderboard`. Use this on shared/CI configs to guarantee the AI can't create resources.
+- `--read-only` — refuse to register the write tools (`bootstrap_leaderboard`, `create_game`, `create_board`, `mint_key`). Use this on shared/CI configs to guarantee the AI can't create resources.
 - `--base-url=<url>` — override the API origin. Defaults to `https://api.scorezilla.dev`. Useful for self-hosted or staging environments.
 
 ## Env vars
