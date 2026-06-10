@@ -12,10 +12,13 @@ import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { buildServer } from '../src/index';
 import type {
   McpBootstrapSuccess,
+  McpCreateBoardResponse,
+  McpCreateGameResponse,
   McpGameSummary,
   McpGetBoardTopResponse,
   McpKeySummary,
   McpListGamesResponse,
+  McpMintKeyResponse,
 } from '../src/contract';
 
 const TEST_CONFIG = {
@@ -501,6 +504,48 @@ describe('contract shapes', () => {
       ],
     } satisfies McpGetBoardTopResponse;
     expectTypeOf(fixture).toMatchTypeOf<McpGetBoardTopResponse>();
+  });
+
+  it('create_game mock satisfies McpCreateGameResponse', () => {
+    const fixture = {
+      ok: true,
+      gameId: '11111111-1111-4111-8111-111111111111',
+      slug: 'pong',
+      name: 'Pong',
+      createdAt: 1,
+    } satisfies McpCreateGameResponse;
+    expectTypeOf(fixture).toMatchTypeOf<McpCreateGameResponse>();
+    expect(fixture.gameId).toMatch(/^[0-9a-f-]{36}$/);
+  });
+
+  it('create_board mock satisfies McpCreateBoardResponse', () => {
+    const fixture = {
+      ok: true,
+      board: {
+        id: '22222222-2222-4222-8222-222222222222',
+        slug: 'high-scores',
+        name: 'High Scores',
+        sortDir: 'desc',
+        scoreKind: 'integer',
+        retentionPolicy: 'top_n',
+        retentionN: 100,
+        minScore: null,
+        maxScore: null,
+        createdAt: 1,
+      },
+    } satisfies McpCreateBoardResponse;
+    expectTypeOf(fixture).toMatchTypeOf<McpCreateBoardResponse>();
+    expect(fixture.board.retentionN).toBe(100);
+  });
+
+  it('mint_key mock satisfies McpMintKeyResponse', () => {
+    const fixture = {
+      ok: true,
+      publicKey: 'pk_pong_abc',
+      secretKey: 'sk_live_def',
+      secretKeyPrefix: 'sk_live_def',
+    } satisfies McpMintKeyResponse;
+    expectTypeOf(fixture).toMatchTypeOf<McpMintKeyResponse>();
   });
 
   it('keys: secret-key plaintext is always null at the contract level', () => {
