@@ -112,7 +112,20 @@ function loadConfig(argv: readonly string[]): RuntimeConfig {
   // that ever does string keying on the URL.
   try {
     const u = new URL(baseUrl);
-    baseUrl = `${u.protocol.toLowerCase()}//${u.host.toLowerCase()}${u.pathname.replace(/\/+$/, '')}`;
+    const proto = u.protocol.toLowerCase();
+    const isLocal = u.hostname === 'localhost' || u.hostname === '127.0.0.1';
+    // Only HTTPS (or http://localhost for dev). The SCOREZILLA_TOKEN bearer is
+    // sent on every request, so a poisoned --base-url (e.g. via prompt
+    // injection) must not be able to redirect credentials to a plaintext or
+    // attacker-controlled origin.
+    if (proto !== 'https:' && !(proto === 'http:' && isLocal)) {
+      process.stderr.write(
+        `scorezilla-mcp: base URL must use https:// (got "${baseUrl}"); ` +
+          'only http://localhost is allowed for local dev\n',
+      );
+      process.exit(64);
+    }
+    baseUrl = `${proto}//${u.host.toLowerCase()}${u.pathname.replace(/\/+$/, '')}`;
   } catch {
     process.stderr.write(`scorezilla-mcp: invalid base URL "${baseUrl}"\n`);
     process.exit(64);
@@ -175,7 +188,7 @@ type ApiResult<T> = ApiOk<T> | ApiFail;
 
 interface ApiClient {
   get<T>(path: string): Promise<ApiResult<T>>;
-  post<T>(path: string, body: unknown): Promise<ApiResult<T>>;
+  post<T>(path: string, body: unknown, idempotencyKey?: string): Promise<ApiResult<T>>;
 }
 
 function buildApiClient(config: RuntimeConfig): ApiClient {
@@ -202,6 +215,7 @@ function buildApiClient(config: RuntimeConfig): ApiClient {
     method: 'GET' | 'POST',
     path: string,
     body?: unknown,
+    idempotencyKey?: string,
   ): Promise<ApiResult<T>> {
     const url = `${config.baseUrl}${path}`;
     let res: Response;
@@ -211,6 +225,10 @@ function buildApiClient(config: RuntimeConfig): ApiClient {
         headers: {
           ...baseHeaders,
           ...(body !== undefined ? { 'content-type': 'application/json' } : {}),
+          // Content-derived idempotency key on writes — a retry of the SAME
+          // logical create dedupes server-side (5-min window) instead of
+          // creating a duplicate; for mint_key it replays the same key pair.
+          ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}),
         },
         ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
       });
@@ -250,7 +268,7 @@ function buildApiClient(config: RuntimeConfig): ApiClient {
 
   return {
     get: (path) => request('GET', path),
-    post: (path, body) => request('POST', path, body),
+    post: (path, body, idempotencyKey) => request('POST', path, body, idempotencyKey),
   };
 }
 
@@ -468,7 +486,11 @@ export function buildServer(config: RuntimeConfig): McpServer {
           .describe('URL-safe slug, e.g. "neon-runner" (2–42 chars, lowercase + hyphens; derive from name)'),
       },
       async (input) => {
-        const r = await api.post<McpCreateGameResponse>('/v1/mcp/games', input);
+        const r = await api.post<McpCreateGameResponse>(
+          '/v1/mcp/games',
+          input,
+          `create_game:${input.slug}`,
+        );
         return r.ok ? ok(r.data) : failFromApi(r);
       },
     );
@@ -477,7 +499,7 @@ export function buildServer(config: RuntimeConfig): McpServer {
       'create_board',
       'Add a leaderboard board to an EXISTING game (by gameId — get it from list_games). This is how you add boards to a game that already exists; bootstrap_leaderboard only works for brand-new games. sortDir "desc" = high-scores-win, "asc" = lowest-time-wins. Returns the created board including its id.',
       {
-        gameId: z.string().min(1).describe('The id of the game to add the board to (from list_games)'),
+        gameId: z.string().uuid().describe('UUID of the game to add the board to (from list_games)'),
         name: z.string().min(1).max(100).describe('Display name of the leaderboard'),
         slug: z
           .string()
@@ -506,19 +528,27 @@ export function buildServer(config: RuntimeConfig): McpServer {
       },
       async (input) => {
         const { gameId, ...board } = input;
-        const r = await api.post<McpCreateBoardResponse>(`/v1/mcp/games/${gameId}/boards`, board);
+        const r = await api.post<McpCreateBoardResponse>(
+          `/v1/mcp/games/${gameId}/boards`,
+          board,
+          `create_board:${gameId}:${board.slug}`,
+        );
         return r.ok ? ok(r.data) : failFromApi(r);
       },
     );
 
     server.tool(
       'mint_key',
-      'Mint a fresh public/secret key pair for an EXISTING game (by gameId). Returns publicKey (pk_ — safe for the browser/widget) and secretKey (sk_ — server-only, shown ONCE; tell the developer to store it now). Use when a game needs keys, or to add another pair. Key revocation/rotation is done in the dashboard.',
+      'Mint a fresh public/secret key pair for an EXISTING game (by gameId). Returns publicKey (pk_ — safe for the browser/widget) and secretKey (sk_ — server-only, shown ONCE; tell the developer to store it now). Use when a game needs keys, or to add another pair. Key revocation/rotation is done in the dashboard. Note: the secret also appears in this MCP host\'s tool-call transcript, so treat the conversation as sensitive until cleared.',
       {
-        gameId: z.string().min(1).describe('The id of the game to mint keys for (from list_games)'),
+        gameId: z.string().uuid().describe('UUID of the game to mint keys for (from list_games)'),
       },
       async (input) => {
-        const r = await api.post<McpMintKeyResponse>(`/v1/mcp/games/${input.gameId}/keys`, {});
+        const r = await api.post<McpMintKeyResponse>(
+          `/v1/mcp/games/${input.gameId}/keys`,
+          {},
+          `mint_key:${input.gameId}`,
+        );
         return r.ok ? ok(r.data) : failFromApi(r);
       },
     );
