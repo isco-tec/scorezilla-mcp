@@ -60,6 +60,26 @@ export interface McpListBoardsResponse extends McpOk {
 }
 
 // ---------------------------------------------------------------------------
+// Create-only write tools: create_game / create_board / mint_key
+// ---------------------------------------------------------------------------
+
+export interface McpCreateGameResponse extends McpOk {
+  gameId: string;
+  slug: string;
+  name: string;
+}
+
+export interface McpCreateBoardResponse extends McpOk {
+  board: McpBoardSummary;
+}
+
+export interface McpMintKeyResponse extends McpOk {
+  publicKey: string;
+  secretKey: string;
+  secretKeyPrefix: string;
+}
+
+// ---------------------------------------------------------------------------
 // GET /v1/mcp/games/:gameId/keys
 // ---------------------------------------------------------------------------
 

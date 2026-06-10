@@ -32,10 +32,13 @@ import {
 } from './contract';
 import type {
   McpBootstrapSuccess,
+  McpCreateBoardResponse,
+  McpCreateGameResponse,
   McpGetBoardTopResponse,
   McpGetKeysResponse,
   McpListBoardsResponse,
   McpListGamesResponse,
+  McpMintKeyResponse,
   McpSdkSnippetResponse,
 } from './contract';
 
@@ -423,10 +426,9 @@ export function buildServer(config: RuntimeConfig): McpServer {
   if (!config.readOnly) {
     server.tool(
       'bootstrap_leaderboard',
-      // The first sentence is load-bearing: it's the heuristic the AI
-      // uses to choose this tool over create_game + create_board. Without
-      // it, agents reach for the granular tools (which we deliberately
-      // don't ship in v1).
+      // The first sentence is load-bearing: it's the heuristic the AI uses to
+      // choose this one-shot over the granular create_game + create_board when
+      // starting from scratch (one call, and it returns ready-to-paste code).
       'Use this when starting from scratch — creates a new game AND its first board in one call, then returns ready-to-paste integration code wired against the board. The fastest path from "I want a leaderboard" to "scores are flowing." Do NOT call this if the developer already has games — call list_games first and use bootstrap_leaderboard only when no game exists yet. The response includes `snippets.sdk` (framework/server code), `snippets.widget` (a themeable drop-in HTML embed; null for server_only), and a plain-English `recommendation` to relay to the developer — paste `snippets.sdk` (and/or `snippets.widget`) into their code. The optional axis args tailor the output: set hostingPattern=\'client_with_server\' for anti-cheat (server-validated scores), playerIdentityStrategy=\'auth_provider\' (+ authProvider) for OAuth identity, or serverLanguage for a non-TypeScript server. Omit them all for the simplest anonymous + client-only setup.',
       {
         gameName: z.string().min(1).max(100).describe('Display name of the game (any string)'),
@@ -451,6 +453,72 @@ export function buildServer(config: RuntimeConfig): McpServer {
       },
       async (input) => {
         const r = await api.post<McpBootstrapSuccess>('/v1/mcp/bootstrap', input);
+        return r.ok ? ok(r.data) : failFromApi(r);
+      },
+    );
+
+    server.tool(
+      'create_game',
+      "Create a new (empty) game in the developer's account. Use this when they ALREADY have a game (so bootstrap_leaderboard would conflict) or want an additional game — call list_games first to check. Returns the gameId; follow up with create_board to add leaderboards and mint_key for keys. For a first-ever game from scratch, prefer bootstrap_leaderboard (it does game + board + keys + code in one call).",
+      {
+        name: z.string().min(1).max(100).describe('Display name of the game'),
+        slug: z
+          .string()
+          .regex(/^[a-z0-9][a-z0-9-]{0,40}[a-z0-9]$/, '2–42 chars, lowercase alphanumeric and hyphens')
+          .describe('URL-safe slug, e.g. "neon-runner" (2–42 chars, lowercase + hyphens; derive from name)'),
+      },
+      async (input) => {
+        const r = await api.post<McpCreateGameResponse>('/v1/mcp/games', input);
+        return r.ok ? ok(r.data) : failFromApi(r);
+      },
+    );
+
+    server.tool(
+      'create_board',
+      'Add a leaderboard board to an EXISTING game (by gameId — get it from list_games). This is how you add boards to a game that already exists; bootstrap_leaderboard only works for brand-new games. sortDir "desc" = high-scores-win, "asc" = lowest-time-wins. Returns the created board including its id.',
+      {
+        gameId: z.string().min(1).describe('The id of the game to add the board to (from list_games)'),
+        name: z.string().min(1).max(100).describe('Display name of the leaderboard'),
+        slug: z
+          .string()
+          .regex(/^[a-z0-9][a-z0-9-]{0,40}[a-z0-9]$/, '2–42 chars, lowercase alphanumeric and hyphens')
+          .describe('URL-safe slug for the board, e.g. "high-scores" (2–42 chars, lowercase + hyphens)'),
+        sortDir: z
+          .enum(['asc', 'desc'])
+          .default('desc')
+          .describe('"desc" for high-scores-win, "asc" for lowest-time-wins'),
+        scoreKind: z
+          .enum(['integer', 'duration_ms', 'float'])
+          .default('integer')
+          .describe('Score type: integer (default), duration_ms (time trials), or float'),
+        retentionPolicy: z
+          .enum(['all', 'top_n', 'rolling_30d'])
+          .optional()
+          .describe('How long scores are kept: all (default), top_n (best N — set retentionN), or rolling_30d'),
+        retentionN: z
+          .number()
+          .int()
+          .positive()
+          .optional()
+          .describe('Required when retentionPolicy="top_n": how many top scores to retain (1–1,000,000)'),
+        minScore: z.number().optional().describe('Optional lower bound; scores below are rejected'),
+        maxScore: z.number().optional().describe('Optional upper bound; scores above are rejected'),
+      },
+      async (input) => {
+        const { gameId, ...board } = input;
+        const r = await api.post<McpCreateBoardResponse>(`/v1/mcp/games/${gameId}/boards`, board);
+        return r.ok ? ok(r.data) : failFromApi(r);
+      },
+    );
+
+    server.tool(
+      'mint_key',
+      'Mint a fresh public/secret key pair for an EXISTING game (by gameId). Returns publicKey (pk_ — safe for the browser/widget) and secretKey (sk_ — server-only, shown ONCE; tell the developer to store it now). Use when a game needs keys, or to add another pair. Key revocation/rotation is done in the dashboard.',
+      {
+        gameId: z.string().min(1).describe('The id of the game to mint keys for (from list_games)'),
+      },
+      async (input) => {
+        const r = await api.post<McpMintKeyResponse>(`/v1/mcp/games/${input.gameId}/keys`, {});
         return r.ok ? ok(r.data) : failFromApi(r);
       },
     );

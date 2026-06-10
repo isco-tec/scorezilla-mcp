@@ -84,27 +84,32 @@ async function connectedClient(readOnly = false): Promise<Client> {
 // ---------------------------------------------------------------------------
 
 describe('tool registration', () => {
-  it('exposes 6 tools when read-write', async () => {
+  it('exposes 9 tools when read-write', async () => {
     const client = await connectedClient(false);
     const tools = await client.listTools();
     const names = tools.tools.map((t) => t.name).sort();
     expect(names).toEqual(
       [
         'bootstrap_leaderboard',
+        'create_board',
+        'create_game',
         'get_board_top_n',
         'get_keys',
         'get_sdk_snippet',
         'list_boards',
         'list_games',
+        'mint_key',
       ].sort(),
     );
   });
 
-  it('omits bootstrap_leaderboard when read-only', async () => {
+  it('omits all write tools (bootstrap + create_*/mint_key) when read-only', async () => {
     const client = await connectedClient(true);
     const tools = await client.listTools();
     const names = tools.tools.map((t) => t.name);
-    expect(names).not.toContain('bootstrap_leaderboard');
+    for (const w of ['bootstrap_leaderboard', 'create_game', 'create_board', 'mint_key']) {
+      expect(names).not.toContain(w);
+    }
     expect(names).toContain('list_games');
   });
 
@@ -131,6 +136,89 @@ describe('list_games', () => {
     const result = await client.callTool({ name: 'list_games', arguments: {} });
     const text = (result.content as Array<{ text: string }>)[0]!.text;
     expect(text).toContain('pong');
+  });
+});
+
+describe('write tools', () => {
+  it('create_game POSTs to /v1/mcp/games and returns the new game', async () => {
+    mockApi(
+      '/v1/mcp/games',
+      jsonResponse({ ok: true, gameId: 'g-new', slug: 'neon-runner', name: 'Neon Runner' }),
+    );
+    const client = await connectedClient(false);
+    const result = await client.callTool({
+      name: 'create_game',
+      arguments: { name: 'Neon Runner', slug: 'neon-runner' },
+    });
+    const text = (result.content as Array<{ text: string }>)[0]!.text;
+    expect(text).toContain('g-new');
+    expect(text).toContain('neon-runner');
+  });
+
+  it('create_board POSTs to the game-scoped path and returns the board', async () => {
+    mockApi(
+      '/v1/mcp/games/g-existing/boards',
+      jsonResponse({
+        ok: true,
+        board: {
+          id: 'b-new',
+          slug: 'world-void',
+          name: 'THE VOID',
+          sortDir: 'desc',
+          scoreKind: 'integer',
+          retentionPolicy: 'all',
+          minScore: null,
+          maxScore: null,
+          createdAt: 1,
+        },
+      }),
+    );
+    const client = await connectedClient(false);
+    const result = await client.callTool({
+      name: 'create_board',
+      arguments: { gameId: 'g-existing', name: 'THE VOID', slug: 'world-void' },
+    });
+    const text = (result.content as Array<{ text: string }>)[0]!.text;
+    expect(text).toContain('b-new');
+    expect(text).toContain('world-void');
+  });
+
+  it('mint_key POSTs to the keys path and returns pk_/sk_', async () => {
+    mockApi(
+      '/v1/mcp/games/g-existing/keys',
+      jsonResponse({
+        ok: true,
+        publicKey: 'pk_neon_abc',
+        secretKey: 'sk_live_xyz',
+        secretKeyPrefix: 'sk_live_xyz1',
+      }),
+    );
+    const client = await connectedClient(false);
+    const result = await client.callTool({
+      name: 'mint_key',
+      arguments: { gameId: 'g-existing' },
+    });
+    const text = (result.content as Array<{ text: string }>)[0]!.text;
+    expect(text).toContain('pk_neon_abc');
+    expect(text).toContain('sk_live_xyz');
+  });
+
+  it('create_board surfaces a 409 slug conflict as a tool error', async () => {
+    mockApi(
+      '/v1/mcp/games/g-existing/boards',
+      jsonResponse(
+        { ok: false, error: 'slug_taken', message: "A board with slug 'world-void' already exists" },
+        409,
+      ),
+    );
+    const client = await connectedClient(false);
+    const result = await client.callTool({
+      name: 'create_board',
+      arguments: { gameId: 'g-existing', name: 'X', slug: 'world-void' },
+    });
+    expect((result as { isError?: boolean }).isError).toBe(true);
+    const text = (result.content as Array<{ text: string }>)[0]!.text;
+    expect(text).toContain('slug_taken');
   });
 });
 
