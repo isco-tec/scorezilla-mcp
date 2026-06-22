@@ -582,6 +582,7 @@ export function buildServer(config: RuntimeConfig): McpServer {
           .number()
           .int()
           .positive()
+          .max(1_000_000)
           .nullable()
           .optional()
           .describe('Top scores to retain when retentionPolicy="top_n" (1–1,000,000); null clears it'),
@@ -601,10 +602,15 @@ export function buildServer(config: RuntimeConfig): McpServer {
       'Set a game\'s allowed-origins allowlist AFTER creation (by gameId — from list_games). Restricts browser score submissions to specific web origins: an exact origin like "https://yourgame.com" or a wildcard host like "*.yourgame.com" (up to 20). Pass an empty array to allow all origins (the default). Returns the normalized stored list. Gates browser requests only — server-to-server calls send no Origin header.',
       {
         gameId: z.string().uuid().describe('UUID of the game (from list_games)'),
+        // Required (this tool's sole purpose); the API treats it as a FULL
+        // replacement of the allowlist. Per-origin format is validated
+        // server-side (kept off the client to avoid pattern drift with the API).
         allowedOrigins: z
           .array(z.string())
           .max(20)
-          .describe('Origin patterns (exact https origin or *.host wildcard); [] allows all origins'),
+          .describe(
+            'Origin patterns — exact https origin or *.host wildcard, validated server-side. Full replacement of the allowlist; [] allows all origins.',
+          ),
       },
       async (input) => {
         const r = await api.patch<McpUpdateGameConfigResponse>(`/v1/mcp/games/${input.gameId}/config`, {

@@ -289,6 +289,8 @@ export type McpBootstrapResponse =
 export interface McpLeaderboardEntry {
   rank: number;
   playerId: string;
+  /** The player's public display name, when set. */
+  name?: string;
   score: number;
   submittedAt: number;
   metadata?: Record<string, unknown>;

@@ -270,6 +270,109 @@ describe('write tools', () => {
     expect(text).toContain('yourgame.com');
   });
 
+  // The partial-update contract is the crux of both tools — assert what actually
+  // lands on the wire, not just the echoed response.
+  const boardConfigBody = {
+    ok: true,
+    board: {
+      id: '22222222-2222-4222-8222-222222222222',
+      slug: 'high-scores',
+      name: 'High Scores',
+      sortDir: 'desc',
+      scoreKind: 'integer',
+      retentionPolicy: 'all',
+      retentionN: null,
+      minScore: null,
+      maxScore: null,
+      createdAt: 1,
+    },
+  };
+
+  /** Wrap fetch to capture the JSON body the tool actually sends. beforeEach resets fetch. */
+  function captureBody(): () => Record<string, unknown> | undefined {
+    let sent: Record<string, unknown> | undefined;
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = vi.fn(async (input, init) => {
+      sent = init?.body ? JSON.parse(init.body as string) : undefined;
+      return realFetch(input, init);
+    }) as typeof fetch;
+    return () => sent;
+  }
+
+  it('update_board_config sends ONLY the fields the caller provided (partial)', async () => {
+    prepared.push({
+      matcher: (url) => url.includes('/boards/') && url.endsWith('/config'),
+      response: jsonResponse(boardConfigBody),
+    });
+    const body = captureBody();
+    const client = await connectedClient(false);
+    await client.callTool({
+      name: 'update_board_config',
+      arguments: {
+        gameId: '11111111-1111-4111-8111-111111111111',
+        boardId: '22222222-2222-4222-8222-222222222222',
+        maxScore: 300,
+      },
+    });
+    // Omitted fields must NOT appear on the wire — else the API would read them.
+    expect(body()).toEqual({ maxScore: 300 });
+  });
+
+  it('update_board_config sends an explicit null to clear a bound (not absent)', async () => {
+    prepared.push({
+      matcher: (url) => url.includes('/boards/') && url.endsWith('/config'),
+      response: jsonResponse(boardConfigBody),
+    });
+    const body = captureBody();
+    const client = await connectedClient(false);
+    await client.callTool({
+      name: 'update_board_config',
+      arguments: {
+        gameId: '11111111-1111-4111-8111-111111111111',
+        boardId: '22222222-2222-4222-8222-222222222222',
+        maxScore: null,
+      },
+    });
+    // null must survive to the wire (clear), not be dropped as absent (no change).
+    expect(body()).toEqual({ maxScore: null });
+  });
+
+  it('update_game_config sends an empty allowedOrigins array as [] (allow all)', async () => {
+    prepared.push({
+      matcher: (url) => url.endsWith('/config') && !url.includes('/boards/'),
+      response: jsonResponse({
+        ok: true,
+        gameId: '11111111-1111-4111-8111-111111111111',
+        allowedOrigins: [],
+      }),
+    });
+    const body = captureBody();
+    const client = await connectedClient(false);
+    await client.callTool({
+      name: 'update_game_config',
+      arguments: { gameId: '11111111-1111-4111-8111-111111111111', allowedOrigins: [] },
+    });
+    expect(body()).toEqual({ allowedOrigins: [] });
+  });
+
+  it('update_board_config surfaces a 404 as a tool error', async () => {
+    prepared.push({
+      matcher: (url) => url.includes('/boards/') && url.endsWith('/config'),
+      response: jsonResponse({ ok: false, error: 'not_found', message: 'Board not found' }, 404),
+    });
+    const client = await connectedClient(false);
+    const result = await client.callTool({
+      name: 'update_board_config',
+      arguments: {
+        gameId: '11111111-1111-4111-8111-111111111111',
+        boardId: '22222222-2222-4222-8222-222222222222',
+        maxScore: 1,
+      },
+    });
+    expect((result as { isError?: boolean }).isError).toBe(true);
+    expect((result.content as Array<{ text: string }>)[0]!.text).toContain('not_found');
+  });
+
   it('create_board surfaces a 409 slug conflict as a tool error', async () => {
     mockApi(
       '/v1/mcp/games/11111111-1111-4111-8111-111111111111/boards',
