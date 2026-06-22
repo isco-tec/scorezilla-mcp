@@ -82,6 +82,21 @@ export interface McpMintKeyResponse extends McpOk {
 }
 
 // ---------------------------------------------------------------------------
+// Config-update write tools: update_board_config / update_game_config
+// ---------------------------------------------------------------------------
+
+/** Board after a partial config update (maxScore / minScore / retention). */
+export interface McpUpdateBoardConfigResponse extends McpOk {
+  board: McpBoardSummary;
+}
+
+/** A game's allowed-origins after an update (normalized; empty ⇒ all origins). */
+export interface McpUpdateGameConfigResponse extends McpOk {
+  gameId: string;
+  allowedOrigins: string[];
+}
+
+// ---------------------------------------------------------------------------
 // GET /v1/mcp/games/:gameId/keys
 // ---------------------------------------------------------------------------
 
@@ -274,6 +289,8 @@ export type McpBootstrapResponse =
 export interface McpLeaderboardEntry {
   rank: number;
   playerId: string;
+  /** The player's public display name, when set. */
+  name?: string;
   score: number;
   submittedAt: number;
   metadata?: Record<string, unknown>;

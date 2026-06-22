@@ -11,7 +11,7 @@ Official Model Context Protocol (MCP) server for [Scorezilla](https://scorezilla
 - "What did my last test score rank?" → it reads your live leaderboard
 - "List my games" / "show me the boards on X" → it inspects what you already have
 
-Nine tools total — five read-only, four that create resources (`bootstrap_leaderboard`, `create_game`, `create_board`, `mint_key`).
+Eleven tools total — five read-only, and six that write: four that create resources (`bootstrap_leaderboard`, `create_game`, `create_board`, `mint_key`) plus two that update config (`update_board_config` — score bounds + retention, e.g. an anti-cheat `maxScore`; `update_game_config` — the browser-submit origin allowlist).
 
 ## Install + configure
 
@@ -69,7 +69,7 @@ In Claude Code or Cursor: _"Add a Scorezilla leaderboard to this game."_
 scorezilla-mcp [--read-only] [--base-url=<url>] [--version] [--help]
 ```
 
-- `--read-only` — refuse to register the write tools (`bootstrap_leaderboard`, `create_game`, `create_board`, `mint_key`). Use this on shared/CI configs to guarantee the AI can't create resources.
+- `--read-only` — refuse to register the write tools (`bootstrap_leaderboard`, `create_game`, `create_board`, `mint_key`, `update_board_config`, `update_game_config`). Use this on shared/CI configs to guarantee the AI can't create or change resources.
 - `--base-url=<url>` — override the API origin. Defaults to `https://api.scorezilla.dev`. Useful for self-hosted or staging environments.
 
 ## Env vars

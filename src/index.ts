@@ -40,6 +40,8 @@ import type {
   McpListGamesResponse,
   McpMintKeyResponse,
   McpSdkSnippetResponse,
+  McpUpdateBoardConfigResponse,
+  McpUpdateGameConfigResponse,
 } from './contract';
 
 // ---------------------------------------------------------------------------
@@ -189,6 +191,8 @@ type ApiResult<T> = ApiOk<T> | ApiFail;
 interface ApiClient {
   get<T>(path: string): Promise<ApiResult<T>>;
   post<T>(path: string, body: unknown, idempotencyKey?: string): Promise<ApiResult<T>>;
+  /** Partial config updates (naturally idempotent → no Idempotency-Key). */
+  patch<T>(path: string, body: unknown): Promise<ApiResult<T>>;
 }
 
 function buildApiClient(config: RuntimeConfig): ApiClient {
@@ -212,7 +216,7 @@ function buildApiClient(config: RuntimeConfig): ApiClient {
   });
 
   async function request<T>(
-    method: 'GET' | 'POST',
+    method: 'GET' | 'POST' | 'PATCH',
     path: string,
     body?: unknown,
     idempotencyKey?: string,
@@ -269,6 +273,7 @@ function buildApiClient(config: RuntimeConfig): ApiClient {
   return {
     get: (path) => request('GET', path),
     post: (path, body, idempotencyKey) => request('POST', path, body, idempotencyKey),
+    patch: (path, body) => request('PATCH', path, body),
   };
 }
 
@@ -549,6 +554,68 @@ export function buildServer(config: RuntimeConfig): McpServer {
           {},
           `mint_key:${input.gameId}`,
         );
+        return r.ok ? ok(r.data) : failFromApi(r);
+      },
+    );
+
+    server.tool(
+      'update_board_config',
+      'Update a board\'s scoring config AFTER creation (by gameId + boardId — from list_games / list_boards). PARTIAL: only the fields you pass change. Use it to cap scores for anti-cheat (maxScore), set a floor (minScore), or change retention. A bound can be cleared by passing null. Returns the full updated board.',
+      {
+        gameId: z.string().uuid().describe('UUID of the game (from list_games)'),
+        boardId: z.string().uuid().describe('UUID of the board to update (from list_boards)'),
+        minScore: z
+          .number()
+          .nullable()
+          .optional()
+          .describe('Lower bound; scores below are rejected. Pass null to clear it.'),
+        maxScore: z
+          .number()
+          .nullable()
+          .optional()
+          .describe('Upper bound; scores above are rejected (the anti-cheat cap). Pass null to clear it.'),
+        retentionPolicy: z
+          .enum(['all', 'top_n', 'rolling_30d'])
+          .optional()
+          .describe('How long scores are kept: all, top_n (set retentionN), or rolling_30d'),
+        retentionN: z
+          .number()
+          .int()
+          .positive()
+          .max(1_000_000)
+          .nullable()
+          .optional()
+          .describe('Top scores to retain when retentionPolicy="top_n" (1–1,000,000); null clears it'),
+      },
+      async (input) => {
+        const { gameId, boardId, ...config } = input;
+        const r = await api.patch<McpUpdateBoardConfigResponse>(
+          `/v1/mcp/games/${gameId}/boards/${boardId}/config`,
+          config,
+        );
+        return r.ok ? ok(r.data) : failFromApi(r);
+      },
+    );
+
+    server.tool(
+      'update_game_config',
+      'Set a game\'s allowed-origins allowlist AFTER creation (by gameId — from list_games). Restricts browser score submissions to specific web origins: an exact origin like "https://yourgame.com" or a wildcard host like "*.yourgame.com" (up to 20). Pass an empty array to allow all origins (the default). Returns the normalized stored list. Gates browser requests only — server-to-server calls send no Origin header.',
+      {
+        gameId: z.string().uuid().describe('UUID of the game (from list_games)'),
+        // Required (this tool's sole purpose); the API treats it as a FULL
+        // replacement of the allowlist. Per-origin format is validated
+        // server-side (kept off the client to avoid pattern drift with the API).
+        allowedOrigins: z
+          .array(z.string())
+          .max(20)
+          .describe(
+            'Origin patterns — exact https origin or *.host wildcard, validated server-side. Full replacement of the allowlist; [] allows all origins.',
+          ),
+      },
+      async (input) => {
+        const r = await api.patch<McpUpdateGameConfigResponse>(`/v1/mcp/games/${input.gameId}/config`, {
+          allowedOrigins: input.allowedOrigins,
+        });
         return r.ok ? ok(r.data) : failFromApi(r);
       },
     );
