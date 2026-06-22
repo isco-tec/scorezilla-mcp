@@ -1,5 +1,16 @@
 # @scorezilla/mcp
 
+## 0.4.0
+
+### Minor Changes
+
+- [#43](https://github.com/isco-tec/scorezilla-mcp/pull/43) [`ee49edd`](https://github.com/isco-tec/scorezilla-mcp/commit/ee49edd629b193b0a58db195839b9e43a010027a) Thanks [@isco-tec](https://github.com/isco-tec)! - Add two config-update write tools so an agent can tune resources after creation, not just create them:
+
+  - `update_board_config` — partial update of a board's score bounds + retention (e.g. set an anti-cheat `maxScore`, a `minScore` floor, or change retention; a bound clears with `null`).
+  - `update_game_config` — set a game's browser-submit origin allowlist (exact origins or `*.host` wildcards; empty allows all).
+
+  Both target existing resources by id and are ownership-scoped server-side. The internal API client gains a `patch` method. Both are excluded under `--read-only`.
+
 ## 0.3.1
 
 ### Patch Changes
