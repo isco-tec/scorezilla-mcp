@@ -19,6 +19,8 @@ import type {
   McpKeySummary,
   McpListGamesResponse,
   McpMintKeyResponse,
+  McpUpdateBoardConfigResponse,
+  McpUpdateGameConfigResponse,
 } from '../src/contract';
 
 const TEST_CONFIG = {
@@ -87,7 +89,7 @@ async function connectedClient(readOnly = false): Promise<Client> {
 // ---------------------------------------------------------------------------
 
 describe('tool registration', () => {
-  it('exposes 9 tools when read-write', async () => {
+  it('exposes 11 tools when read-write', async () => {
     const client = await connectedClient(false);
     const tools = await client.listTools();
     const names = tools.tools.map((t) => t.name).sort();
@@ -102,15 +104,24 @@ describe('tool registration', () => {
         'list_boards',
         'list_games',
         'mint_key',
+        'update_board_config',
+        'update_game_config',
       ].sort(),
     );
   });
 
-  it('omits all write tools (bootstrap + create_*/mint_key) when read-only', async () => {
+  it('omits all write tools (bootstrap + create_*/mint_key/update_*) when read-only', async () => {
     const client = await connectedClient(true);
     const tools = await client.listTools();
     const names = tools.tools.map((t) => t.name);
-    for (const w of ['bootstrap_leaderboard', 'create_game', 'create_board', 'mint_key']) {
+    for (const w of [
+      'bootstrap_leaderboard',
+      'create_game',
+      'create_board',
+      'mint_key',
+      'update_board_config',
+      'update_game_config',
+    ]) {
       expect(names).not.toContain(w);
     }
     expect(names).toContain('list_games');
@@ -204,6 +215,59 @@ describe('write tools', () => {
     const text = (result.content as Array<{ text: string }>)[0]!.text;
     expect(text).toContain('pk_neon_abc');
     expect(text).toContain('sk_live_xyz');
+  });
+
+  it('update_board_config PATCHes the board-config path and returns the board', async () => {
+    mockApi(
+      '/v1/mcp/games/11111111-1111-4111-8111-111111111111/boards/22222222-2222-4222-8222-222222222222/config',
+      jsonResponse({
+        ok: true,
+        board: {
+          id: '22222222-2222-4222-8222-222222222222',
+          slug: 'high-scores',
+          name: 'High Scores',
+          sortDir: 'desc',
+          scoreKind: 'integer',
+          retentionPolicy: 'all',
+          retentionN: null,
+          minScore: null,
+          maxScore: 300,
+          createdAt: 1,
+        },
+      }),
+    );
+    const client = await connectedClient(false);
+    const result = await client.callTool({
+      name: 'update_board_config',
+      arguments: {
+        gameId: '11111111-1111-4111-8111-111111111111',
+        boardId: '22222222-2222-4222-8222-222222222222',
+        maxScore: 300,
+      },
+    });
+    const text = (result.content as Array<{ text: string }>)[0]!.text;
+    expect(text).toContain('300');
+  });
+
+  it('update_game_config PATCHes the game-config path and returns the origins', async () => {
+    mockApi(
+      '/v1/mcp/games/11111111-1111-4111-8111-111111111111/config',
+      jsonResponse({
+        ok: true,
+        gameId: '11111111-1111-4111-8111-111111111111',
+        allowedOrigins: ['https://yourgame.com'],
+      }),
+    );
+    const client = await connectedClient(false);
+    const result = await client.callTool({
+      name: 'update_game_config',
+      arguments: {
+        gameId: '11111111-1111-4111-8111-111111111111',
+        allowedOrigins: ['https://yourgame.com'],
+      },
+    });
+    const text = (result.content as Array<{ text: string }>)[0]!.text;
+    expect(text).toContain('yourgame.com');
   });
 
   it('create_board surfaces a 409 slug conflict as a tool error', async () => {
@@ -546,6 +610,36 @@ describe('contract shapes', () => {
       secretKeyPrefix: 'sk_live_def',
     } satisfies McpMintKeyResponse;
     expectTypeOf(fixture).toMatchTypeOf<McpMintKeyResponse>();
+  });
+
+  it('update_board_config mock satisfies McpUpdateBoardConfigResponse', () => {
+    const fixture = {
+      ok: true,
+      board: {
+        id: '22222222-2222-4222-8222-222222222222',
+        slug: 'high-scores',
+        name: 'High Scores',
+        sortDir: 'desc',
+        scoreKind: 'integer',
+        retentionPolicy: 'all',
+        retentionN: null,
+        minScore: null,
+        maxScore: 300,
+        createdAt: 1,
+      },
+    } satisfies McpUpdateBoardConfigResponse;
+    expectTypeOf(fixture).toMatchTypeOf<McpUpdateBoardConfigResponse>();
+    expect(fixture.board.maxScore).toBe(300);
+  });
+
+  it('update_game_config mock satisfies McpUpdateGameConfigResponse', () => {
+    const fixture = {
+      ok: true,
+      gameId: '11111111-1111-4111-8111-111111111111',
+      allowedOrigins: ['https://yourgame.com', '*.yourgame.dev'],
+    } satisfies McpUpdateGameConfigResponse;
+    expectTypeOf(fixture).toMatchTypeOf<McpUpdateGameConfigResponse>();
+    expect(fixture.allowedOrigins).toHaveLength(2);
   });
 
   it('keys: secret-key plaintext is always null at the contract level', () => {
