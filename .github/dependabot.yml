@@ -6,13 +6,12 @@ updates:
   - package-ecosystem: 'npm'
     directory: '/'
     schedule:
-      interval: 'weekly'
-      day: 'monday'
+      interval: 'monthly'
     open-pull-requests-limit: 5
     labels:
       - 'dependencies'
     groups:
-      # Group dev tooling so we don't get five separate PRs every Monday.
+      # Group dev tooling so we don't get five separate PRs every cycle.
       dev-tooling:
         dependency-type: 'development'
         update-types:
@@ -28,8 +27,7 @@ updates:
   - package-ecosystem: 'github-actions'
     directory: '/'
     schedule:
-      interval: 'weekly'
-      day: 'monday'
+      interval: 'monthly'
     open-pull-requests-limit: 3
     labels:
       - 'ci'
