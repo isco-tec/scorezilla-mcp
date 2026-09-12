@@ -3,7 +3,7 @@
 // Regenerate via the cross-repo contract-sync (or `node scripts/sync-contract.mjs`
 // in the monorepo). The drift guard in this repo recomputes source-sha256 below
 // and fails if this file was edited by hand or drifted from the SoT.
-// source-sha256: a6ab44c53576ada66ea03e9dd1a8c4db6b033d4c97b2b2c4b94141dc50cb2879
+// source-sha256: b8bcbff6350daba5cea0cea5d2b825e9793756c1f7c9df16b301b81b852df655
 
 /**
  * MCP response contract (#102, drift detector).
@@ -156,11 +156,7 @@ export interface McpGetKeysResponse extends McpOk {
  * Default: `anonymous` (privacy-safest).
  */
 export type McpPlayerIdentityStrategy =
-  | 'anonymous'
-  | 'prompted_local'
-  | 'auth_provider'
-  | 'server_authoritative'
-  | 'custom_callback';
+  'anonymous' | 'prompted_local' | 'auth_provider' | 'server_authoritative' | 'custom_callback';
 
 /**
  * Runtime-iterable companion to `McpPlayerIdentityStrategy`. The
@@ -391,9 +387,7 @@ export interface McpBootstrapPartialFailure {
  * same exhaustiveness checks.
  */
 export type McpBootstrapResponse =
-  | McpBootstrapSuccess
-  | McpBootstrapError
-  | McpBootstrapPartialFailure;
+  McpBootstrapSuccess | McpBootstrapError | McpBootstrapPartialFailure;
 
 // ---------------------------------------------------------------------------
 // GET /v1/mcp/boards/:boardId/top
