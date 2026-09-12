@@ -79,7 +79,7 @@ jobs:
       name: npm-publish
       url: https://www.npmjs.com/package/@scorezilla/mcp
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           # Changesets needs full history to compute the changelog diff
           # across versions. Fetch-depth 0 = full clone.
