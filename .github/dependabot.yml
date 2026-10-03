@@ -21,6 +21,12 @@ updates:
       mcp-sdk:
         patterns:
           - '@modelcontextprotocol/*'
+    ignore:
+      # Vitest 5 requires Node >= 22.12 — incompatible with the Node 20 leg of
+      # the CI matrix (and `engines.node >=20`). Re-enable when Node 20
+      # support is dropped.
+      - dependency-name: 'vitest'
+        update-types: ['version-update:semver-major']
 
   # GitHub Actions — pinned versions in workflows. Same rationale: drift
   # left unattended turns into "we still use Node 18" embarrassment.

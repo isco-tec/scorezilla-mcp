@@ -121,24 +121,29 @@ jobs:
 
       # ─── The actual release step.
       #
-      # `version:` script runs when there ARE unmerged changesets —
+      # `version-script` runs when there ARE unmerged changesets —
       # changesets bumps package.json, our wrapper syncs server.json
       # afterwards, and the action opens/updates the Version PR.
-      # `publish:` script runs when there are NO unmerged changesets
+      # `publish-script` runs when there are NO unmerged changesets
       # and the tree's version is ahead of what's on npm — publishes
-      # to npm. The action wires NODE_AUTH_TOKEN automatically.
+      # to npm.
+      #
+      # changesets/action v2 input names (kebab-case; the v1 names
+      # `version`/`publish`/`title`/`commit`/`createGithubReleases` are
+      # silently ignored by v2). v2 no longer writes ~/.npmrc from
+      # NPM_TOKEN: npm auth comes from setup-node's `registry-url` +
+      # NODE_AUTH_TOKEN. Pinned by SHA, same as scorezilla-js.
       - name: Changesets — version PR or publish
         id: changesets
-        uses: changesets/action@v1
+        uses: changesets/action@ae32849d5ba541f9ae29e40e22a623bc13562f51 # v2.1.2
         with:
-          version: pnpm changeset:version
-          publish: bash scripts/publish.sh
-          title: 'chore(release): version @scorezilla/mcp'
-          commit: 'chore(release): version @scorezilla/mcp'
-          createGithubReleases: true
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          version-script: pnpm changeset:version
+          publish-script: bash scripts/publish.sh
+          pr-title: 'chore(release): version @scorezilla/mcp'
+          commit-message: 'chore(release): version @scorezilla/mcp'
+          create-github-releases: true
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       # ─── Registry sync — runs only when we actually published.
