@@ -59,7 +59,6 @@ permissions:
   id-token: write
 
 env:
-  PNPM_VERSION: '9'
   # Enable provenance attestations — this repo is PUBLIC, so npm can
   # verify the build origin against the sigstore bundle.
   NPM_PUBLISH_WITH_PROVENANCE: '1'
@@ -85,9 +84,8 @@ jobs:
           # across versions. Fetch-depth 0 = full clone.
           fetch-depth: 0
 
+      # pnpm version comes from package.json "packageManager" (see ci.yml).
       - uses: pnpm/action-setup@v6
-        with:
-          version: ${{ env.PNPM_VERSION }}
 
       - uses: actions/setup-node@v7
         with:
