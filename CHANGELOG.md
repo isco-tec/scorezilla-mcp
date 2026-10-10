@@ -1,5 +1,11 @@
 # @scorezilla/mcp
 
+## 0.4.1
+
+### Patch Changes
+
+- [#71](https://github.com/isco-tec/scorezilla-mcp/pull/71) [`2fd71d9`](https://github.com/isco-tec/scorezilla-mcp/commit/2fd71d9ad979ae5eba7cd2fb1b3cc726030ca15b) Thanks [@isco-tec](https://github.com/isco-tec)! - Rebuild with updated bundled dependencies.
+
 ## 0.4.0
 
 ### Minor Changes
