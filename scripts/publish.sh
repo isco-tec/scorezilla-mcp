@@ -57,6 +57,11 @@ fi
 # registry recovery uses the explicit `registry_resync` dispatch input.
 if npm view "@scorezilla/mcp@${VERSION}" version >/dev/null 2>&1; then
   echo "@scorezilla/mcp@${VERSION} is already on npm — skipping publish (idempotent re-run)."
+  # Nothing published → no tag/release to create (see the end of this
+  # script); an empty output file says so without an action warning.
+  if [[ -n "${CHANGESETS_OUTPUT:-}" ]]; then
+    : >"$CHANGESETS_OUTPUT"
+  fi
   exit 0
 fi
 
@@ -71,8 +76,21 @@ npm publish --access=public --tag "$TAG" "${PROVENANCE_FLAG[@]}"
 # changesets/action's stdout-parsing of `publishedPackages` — it's
 # fragile (the scorezilla-js team hit this in scorezilla-js#20). Owning
 # the signal end-to-end means post-publish steps never silently no-op.
+NAME=$(node -p "require('./package.json').name")
 if [[ -n "${GITHUB_OUTPUT:-}" ]]; then
   printf 'published=true\n' >> "$GITHUB_OUTPUT"
-  printf 'published_name=%s\n' "$(node -p "require('./package.json').name")" >> "$GITHUB_OUTPUT"
+  printf 'published_name=%s\n' "$NAME" >> "$GITHUB_OUTPUT"
   printf 'published_version=%s\n' "$VERSION" >> "$GITHUB_OUTPUT"
+fi
+
+# Tell changesets/action what we published, so it pushes the
+# `<name>@<version>` git tag and creates the GitHub release from this
+# version's CHANGELOG entry. With a custom publish script the action
+# reads one JSON event per line from $CHANGESETS_OUTPUT (what
+# `changeset publish` would write); without it, no tag or release is
+# created.
+if [[ -n "${CHANGESETS_OUTPUT:-}" ]]; then
+  NAME="$NAME" VERSION="$VERSION" node -e \
+    'console.log(JSON.stringify({ type: "git-tag", tag: `${process.env.NAME}@${process.env.VERSION}`, packageName: process.env.NAME }))' \
+    >>"$CHANGESETS_OUTPUT"
 fi

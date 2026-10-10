@@ -144,6 +144,55 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
+      # ─── Smoke-confirm the new tarball is actually installable — BEFORE the
+      # Registry sync, so a Registry record never points at a tarball that
+      # isn't live on npm yet (0.4.1 raced npm propagation) or won't install.
+      # Catches publish-time issues npm itself doesn't surface — e.g.
+      # files: array missing dist, bin perms wrong, broken main.
+      - name: Post-publish bin smoke test
+        # Only after a REAL npm publish — it polls npm for the just-published
+        # version. A registry_resync has no `published_version` (the npm publish
+        # no-ops on an already-published version), so this step is intentionally
+        # NOT gated on it; the binary it would test is already on npm + verified.
+        if: steps.changesets.outputs.published_name != '' && steps.changesets.outputs.published_version != ''
+        env:
+          PUBLISHED_NAME: ${{ steps.changesets.outputs.published_name }}
+          PUBLISHED_VERSION: ${{ steps.changesets.outputs.published_version }}
+        run: |
+          set -euo pipefail
+          echo "Waiting for ${PUBLISHED_NAME}@${PUBLISHED_VERSION} on the registry..."
+          for i in $(seq 1 30); do
+            if npm view "${PUBLISHED_NAME}@${PUBLISHED_VERSION}" version > /dev/null 2>&1; then
+              echo "  → visible after ${i} attempt(s)"
+              break
+            fi
+            if [ "$i" = "30" ]; then
+              echo "  → did NOT appear within 30 attempts (~5 min); failing."
+              exit 1
+            fi
+            sleep 10
+          done
+          # Run the binary out of a freshly-installed tarball — the
+          # same path users hit. Catches the 0.1.0-next.0 class of bug
+          # (shebang, banner, etc.) one layer deeper than the build-
+          # time bin smoke test.
+          tmp=$(mktemp -d)
+          cd "$tmp"
+          npm init -y > /dev/null
+          npm install "${PUBLISHED_NAME}@${PUBLISHED_VERSION}" --no-audit --no-fund > /dev/null
+          # The binary name from the published package.json `bin` field.
+          BIN_OUT=$(./node_modules/.bin/scorezilla-mcp --version 2>&1)
+          echo "Binary reports: ${BIN_OUT}"
+          # Match the version that was published, not what npm reports
+          # (those should agree, but the binary is what users execute).
+          if ! echo "$BIN_OUT" | grep -qE "scorezilla-mcp ${PUBLISHED_VERSION}$"; then
+            echo "  → binary reported wrong version: '${BIN_OUT}' (expected scorezilla-mcp ${PUBLISHED_VERSION})"
+            exit 1
+          fi
+          cd - > /dev/null
+          rm -rf "$tmp"
+          echo "✓ Published artifact is installable and reports correct version"
+
       # ─── Registry sync — runs only when we actually published.
       #
       # Gated on publish.sh's own $GITHUB_OUTPUT signal, not on
@@ -199,50 +248,3 @@ jobs:
       - name: Publish to MCP Registry
         if: (steps.changesets.outputs.published_name != '' && steps.changesets.outputs.published_version != '') || github.event.inputs.registry_resync == 'true'
         run: bash scripts/publish-registry.sh
-
-      # ─── Smoke-confirm the new tarball is actually installable.
-      # Catches publish-time issues npm itself doesn't surface — e.g.
-      # files: array missing dist, bin perms wrong, broken main.
-      - name: Post-publish bin smoke test
-        # Only after a REAL npm publish — it polls npm for the just-published
-        # version. A registry_resync has no `published_version` (the npm publish
-        # no-ops on an already-published version), so this step is intentionally
-        # NOT gated on it; the binary it would test is already on npm + verified.
-        if: steps.changesets.outputs.published_name != '' && steps.changesets.outputs.published_version != ''
-        env:
-          PUBLISHED_NAME: ${{ steps.changesets.outputs.published_name }}
-          PUBLISHED_VERSION: ${{ steps.changesets.outputs.published_version }}
-        run: |
-          set -euo pipefail
-          echo "Waiting for ${PUBLISHED_NAME}@${PUBLISHED_VERSION} on the registry..."
-          for i in $(seq 1 30); do
-            if npm view "${PUBLISHED_NAME}@${PUBLISHED_VERSION}" version > /dev/null 2>&1; then
-              echo "  → visible after ${i} attempt(s)"
-              break
-            fi
-            if [ "$i" = "30" ]; then
-              echo "  → did NOT appear within 30 attempts (~5 min); failing."
-              exit 1
-            fi
-            sleep 10
-          done
-          # Run the binary out of a freshly-installed tarball — the
-          # same path users hit. Catches the 0.1.0-next.0 class of bug
-          # (shebang, banner, etc.) one layer deeper than the build-
-          # time bin smoke test.
-          tmp=$(mktemp -d)
-          cd "$tmp"
-          npm init -y > /dev/null
-          npm install "${PUBLISHED_NAME}@${PUBLISHED_VERSION}" --no-audit --no-fund > /dev/null
-          # The binary name from the published package.json `bin` field.
-          BIN_OUT=$(./node_modules/.bin/scorezilla-mcp --version 2>&1)
-          echo "Binary reports: ${BIN_OUT}"
-          # Match the version that was published, not what npm reports
-          # (those should agree, but the binary is what users execute).
-          if ! echo "$BIN_OUT" | grep -qE "scorezilla-mcp ${PUBLISHED_VERSION}$"; then
-            echo "  → binary reported wrong version: '${BIN_OUT}' (expected scorezilla-mcp ${PUBLISHED_VERSION})"
-            exit 1
-          fi
-          cd - > /dev/null
-          rm -rf "$tmp"
-          echo "✓ Published artifact is installable and reports correct version"
