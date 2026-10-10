@@ -20,7 +20,7 @@ Package manager is **pnpm** (v9 in CI) — never npm/yarn.
 ## Deploy (npm publish)
 
 - Publishing is CI-only via `.github/workflows/release.yml` — **never run `npm publish` or `bash scripts/publish.sh` manually** (the manual path skips provenance; it exists only as a documented disaster fallback).
-- Actual flow (changesets, NOT tag-based): merge to `main` → Release workflow (every run pauses for manual approval via the `npm-publish` GitHub Environment) → changesets opens/updates a "Version Packages" PR → merging that PR publishes to npm with `--provenance` and to the MCP Registry (mcp-publisher), then runs a post-publish install smoke test.
+- Actual flow (changesets, NOT tag-based): merge to `main` → Release workflow (every run pauses for manual approval via the `npm-publish` GitHub Environment) → changesets opens/updates a "Version Packages" PR → merging that PR publishes to npm with `--provenance` (+ `@scorezilla/mcp@<version>` git tag and GitHub release), runs a post-publish install smoke test, then publishes to the MCP Registry (mcp-publisher; waits for npm propagation and retries the Registry's "version not found").
 - **Never bump versions by hand** — changesets only. `package.json` and `server.json` must stay in sync (`scripts/sync-server-json-version.mjs`; `release:check` guards it).
 - `workflow_dispatch` input `registry_resync: true` re-publishes the current version to the MCP Registry only — recovery for "npm published, registry step failed".
 

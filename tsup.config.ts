@@ -27,7 +27,10 @@ export default defineConfig({
   // for debugging.
   minify: true,
   // Bundle dependencies into a single output — keeps `npx` startup
-  // fast and avoids a node_modules dance on first run.
+  // fast and avoids a node_modules dance on first run. The SDK and zod
+  // are devDependencies (build inputs only), so the published package
+  // has no runtime dependencies and installs nothing else; `noExternal`
+  // keeps them inlined even if they move back to `dependencies`.
   noExternal: ['@modelcontextprotocol/sdk', 'zod'],
   // Inline package.json#version at build. Source uses
   // `__SCOREZILLA_MCP_VERSION__` — tsup replaces the identifier verbatim.

@@ -23,6 +23,16 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
+# npm's CDN can lag a publish, and the Registry validates the tarball
+# against npm from its own network: registering too early fails with
+# "version ... was not found (status: 404)" (seen on 0.4.1). So wait
+# until npm serves the version, then retry while the Registry still
+# reports it missing. Overridable for local testing.
+NPM_WAIT_ATTEMPTS="${NPM_WAIT_ATTEMPTS:-30}"
+NPM_WAIT_SECONDS="${NPM_WAIT_SECONDS:-10}"
+REGISTRY_ATTEMPTS="${REGISTRY_ATTEMPTS:-6}"
+REGISTRY_RETRY_SECONDS="${REGISTRY_RETRY_SECONDS:-20}"
+
 # Belt-and-suspenders: don't ship a Registry record that disagrees with
 # the tarball we just published. The same check ran before npm publish,
 # but server.json or package.json could (theoretically) have been
@@ -40,11 +50,38 @@ fi
 VERSION=$(node -p "require('./server.json').version")
 NAME=$(node -p "require('./server.json').name")
 
+NPM_NAME=$(node -p "require('./package.json').name")
+
+echo "Waiting for ${NPM_NAME}@${VERSION} to be served by npm..."
+for ((i = 1; ; i++)); do
+  if npm view "${NPM_NAME}@${VERSION}" version >/dev/null 2>&1; then
+    echo "  → visible after ${i} attempt(s)"
+    break
+  fi
+  if ((i >= NPM_WAIT_ATTEMPTS)); then
+    echo "${NPM_NAME}@${VERSION} is not on npm after ${NPM_WAIT_ATTEMPTS} attempts; not registering it." >&2
+    exit 1
+  fi
+  sleep "$NPM_WAIT_SECONDS"
+done
+
 echo "Authenticating with the MCP Registry via GitHub OIDC..."
 mcp-publisher login github-oidc
 
 echo "Publishing ${NAME}@${VERSION} to the MCP Registry..."
-mcp-publisher publish ./server.json
+for ((i = 1; ; i++)); do
+  if output=$(mcp-publisher publish ./server.json 2>&1); then
+    echo "$output"
+    break
+  fi
+  echo "$output" >&2
+  # Retry only the npm-propagation case; any other failure is real.
+  if [[ "$output" != *"was not found"* ]] || ((i >= REGISTRY_ATTEMPTS)); then
+    exit 1
+  fi
+  echo "  → Registry can't see the npm version yet; retrying in ${REGISTRY_RETRY_SECONDS}s (${i}/${REGISTRY_ATTEMPTS})"
+  sleep "$REGISTRY_RETRY_SECONDS"
+done
 
 echo "✓ Registry record updated"
 
