@@ -1,5 +1,11 @@
 # @scorezilla/mcp
 
+## 0.4.2
+
+### Patch Changes
+
+- [#73](https://github.com/isco-tec/scorezilla-mcp/pull/73) [`adce16c`](https://github.com/isco-tec/scorezilla-mcp/commit/adce16c26ae55831164b9c7952623c4fe38ca236) Thanks [@isco-tec](https://github.com/isco-tec)! - Ship as a self-contained bundle with no runtime dependencies, so `npx -y @scorezilla/mcp` installs a single package.
+
 ## 0.4.1
 
 ### Patch Changes
