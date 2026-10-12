@@ -15,7 +15,7 @@ Eleven tools total — five read-only, and six that write: four that create reso
 
 ## Install + configure
 
-> **Access — closed beta.** The Scorezilla API behind these tools is currently invite-only: without a beta token every tool call returns `403 closed_beta`. [Request access](https://scorezilla.dev/early-access/), then set `SCOREZILLA_BETA_TOKEN` alongside `SCOREZILLA_TOKEN` (see [Env vars](#env-vars)). Leaderboards themselves don't need the MCP — the [SDK](https://www.npmjs.com/package/scorezilla) works for everyone today.
+> **Access — open to every Scorezilla account.** Sign up free at [dashboard.scorezilla.dev](https://dashboard.scorezilla.dev), create a token, and go. Creating games and boards counts toward your plan's limits (Free: 2 games × 3 boards each); when you hit one, the tool error includes a direct upgrade link. See [pricing](https://scorezilla.dev/pricing/).
 
 ### 1. Get a token
 
@@ -76,7 +76,7 @@ scorezilla-mcp [--read-only] [--base-url=<url>] [--version] [--help]
 
 - `SCOREZILLA_TOKEN` — **required**. Bearer token issued at [dashboard.scorezilla.dev/account/tokens](https://dashboard.scorezilla.dev/account/tokens).
 - `SCOREZILLA_BASE_URL` — same as `--base-url`, but via env. CLI flag wins if both are set.
-- `SCOREZILLA_BETA_TOKEN` — **required while the MCP is in closed beta.** Sent as the `X-MCP-Beta` header on every API call; without it the API answers `403 closed_beta`. [Request access](https://scorezilla.dev/early-access/) to get one.
+- `SCOREZILLA_BETA_TOKEN` — no longer needed; the MCP is open to every account. Kept for compatibility (sent as `X-MCP-Beta` when set).
 
 ## Tokens: how they work
 
