@@ -1,7 +1,7 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.isco-tec/mcp",
-  "description": "Official MCP server for Scorezilla — add a leaderboard to your game from your AI coding assistant.",
+  "description": "Official Scorezilla MCP: add a global leaderboard to your game by asking Claude Code or Cursor.",
   "repository": {
     "url": "https://github.com/isco-tec/scorezilla-mcp",
     "source": "github"
