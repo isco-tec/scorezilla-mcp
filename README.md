@@ -2,8 +2,11 @@
 
 [![npm version](https://img.shields.io/npm/v/@scorezilla/mcp.svg)](https://www.npmjs.com/package/@scorezilla/mcp)
 [![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
+[![scorezilla-mcp MCP server](https://glama.ai/mcp/servers/isco-tec/scorezilla-mcp/badges/score.svg)](https://glama.ai/mcp/servers/isco-tec/scorezilla-mcp)
 
-Official Model Context Protocol (MCP) server for [Scorezilla](https://scorezilla.dev) — the easiest way to add a leaderboard to your game. Connect this server to your AI coding assistant (Claude Code, Cursor, Continue.dev, …) and ship a working leaderboard without leaving your editor.
+**Add a global leaderboard to your game by asking Claude Code or Cursor.** The SDK it wires in is ~4 KB gzipped, with zero runtime dependencies.
+
+Official Model Context Protocol (MCP) server for [Scorezilla](https://scorezilla.dev). Connect it to your AI coding assistant (Claude Code, Cursor, Continue.dev, …) and ship a working leaderboard without leaving your editor.
 
 ## What you can ask the AI to do
 
@@ -23,7 +26,13 @@ Sign in at [dashboard.scorezilla.dev](https://dashboard.scorezilla.dev), open **
 
 ### 2. Add the server to your AI coding assistant
 
-**Claude Code** — edit `~/.claude/settings.json`:
+**Claude Code** — one command (`--scope user` makes it available in every project):
+
+```bash
+claude mcp add scorezilla --scope user -e SCOREZILLA_TOKEN=mcp_live_… -- npx -y @scorezilla/mcp
+```
+
+**Cursor** — add this to `~/.cursor/mcp.json` (or Settings → MCP → Add new MCP server):
 
 ```json
 {
@@ -39,9 +48,7 @@ Sign in at [dashboard.scorezilla.dev](https://dashboard.scorezilla.dev), open **
 }
 ```
 
-> 🔒 **Keep `~/.claude/settings.json` private.** The token is stored in plaintext in that file. Make sure it's not committed to git (it's usually in your `.gitignore`), not synced to a public dotfiles repo, and not backed up to a shared location. On macOS/Linux: `chmod 600 ~/.claude/settings.json` so only your user can read it. If a token leaks, revoke it at [dashboard.scorezilla.dev/account/tokens](https://dashboard.scorezilla.dev/account/tokens).
-
-**Cursor** — open Settings → Features → MCP → Add new MCP server, then use the same `command` + `args` + `env` shape.
+> 🔒 **Keep your MCP config private.** Both clients store the token in plaintext (`~/.claude.json` for Claude Code, `~/.cursor/mcp.json` for Cursor). Don't commit it to git, sync it to a public dotfiles repo, or back it up to a shared location. On macOS/Linux, `chmod 600` the file so only your user can read it. If a token leaks, revoke it at [dashboard.scorezilla.dev/account/tokens](https://dashboard.scorezilla.dev/account/tokens).
 
 **Anything else MCP-compatible** — point your client at `npx -y @scorezilla/mcp` with `SCOREZILLA_TOKEN` set in the environment.
 
@@ -62,6 +69,8 @@ In Claude Code or Cursor: _"Add a Scorezilla leaderboard to this game."_
 | `create_game` | Creates a new (empty) game. Use when a game already exists (so `bootstrap_leaderboard` would conflict) or you want another. |
 | `create_board` | Adds a leaderboard board to an **existing** game (by `gameId`), with full options (sortDir, scoreKind, retention, bounds). |
 | `mint_key` | Mints a fresh public/secret key pair for an existing game. The secret is shown once. |
+| `update_board_config` | Changes a board's score bounds and retention after creation (e.g. an anti-cheat `maxScore`). Only the fields you pass change. |
+| `update_game_config` | Sets a game's allowed-origins list, so browser score submissions only come from your own sites. |
 
 ## Flags
 
