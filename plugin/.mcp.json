@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "scorezilla": {
+      "command": "npx",
+      "args": ["-y", "@scorezilla/mcp@0.4.2"],
+      "env": {
+        "SCOREZILLA_TOKEN": "${user_config.scorezilla_token}"
+      }
+    }
+  }
+}

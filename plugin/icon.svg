@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Rounded square in signature acid green -->
+  <rect x="6" y="6" width="52" height="52" rx="11" fill="#c8ff1a"/>
+  <!-- The "Z" mark -->
+  <path
+    d="M 21 22 L 43 22 L 43 26 L 27 42 L 43 42 L 43 46 L 21 46 L 21 42 L 37 26 L 21 26 Z"
+    fill="#08090c"
+  />
+</svg>

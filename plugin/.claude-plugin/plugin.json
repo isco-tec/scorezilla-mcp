@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "scorezilla",
+  "displayName": "Scorezilla",
+  "version": "0.1.0",
+  "description": "Add a global leaderboard to your game by asking Claude. ~4 KB SDK, zero dependencies.",
+  "author": {
+    "name": "isco-tec",
+    "url": "https://github.com/isco-tec"
+  },
+  "homepage": "https://scorezilla.dev/mcp",
+  "repository": "https://github.com/isco-tec/scorezilla-mcp",
+  "license": "MIT",
+  "keywords": ["leaderboard", "game-dev", "high-scores", "indie-games", "sdk"],
+  "icon": "./icon.svg",
+  "documentationUrl": "https://github.com/isco-tec/scorezilla-mcp/tree/main/plugin#readme",
+  "supportUrl": "https://github.com/isco-tec/scorezilla-mcp/issues",
+  "privacyPolicyUrl": "https://scorezilla.dev/privacy/",
+  "termsOfServiceUrl": "https://scorezilla.dev/terms/",
+  "userConfig": {
+    "scorezilla_token": {
+      "type": "string",
+      "title": "Scorezilla MCP token",
+      "description": "Create one at dashboard.scorezilla.dev under MCP tokens (starts with mcp_live_). Stored in your system's secure credential store, never in settings.json.",
+      "required": true,
+      "sensitive": true
+    }
+  }
+}
