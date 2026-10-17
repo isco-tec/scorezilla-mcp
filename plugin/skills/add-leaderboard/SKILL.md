@@ -21,9 +21,10 @@ Ask the user only what the code can't tell you, such as the game's display name.
 
 ## 2. Find or create the board
 
-1. Call `list_games`.
-2. **No games yet:** call `bootstrap_leaderboard`. It creates the game and its first board in one call and
-   returns `snippets.sdk`, `snippets.widget` and a `recommendation`.
+1. Call `list_games` and look for this game by name.
+2. **This game isn't in the account yet** (even if other games are): call `bootstrap_leaderboard`. It creates
+   the game and its first board in one call and returns `snippets.sdk`, `snippets.widget` and a
+   `recommendation`.
    - `gameName` from the project (package name, title screen, README); `gameSlug` derived from it
      (lowercase, hyphens, 2–42 characters).
    - `boardName` / `boardSlug`: something like "High Scores" / `high-scores`.
@@ -71,3 +72,5 @@ Finish with a short summary: the game and board names, which files changed, and 
 
 - If the write tools are missing, the server is running with `--read-only`: say so and only use the read tools.
 - A plan-limit error from a create call includes an upgrade link: pass it on to the user and don't retry.
+  Offer the options: upgrade, archive an unused game in the dashboard, or add the board to one of their
+  existing games with `create_board` for now.
