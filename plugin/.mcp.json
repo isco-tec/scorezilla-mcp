@@ -1,8 +1,8 @@
 {
   "mcpServers": {
     "scorezilla": {
-      "command": "npx",
-      "args": ["-y", "@scorezilla/mcp@0.4.2"],
+      "command": "node",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/node_modules/@scorezilla/mcp/dist/index.js"],
       "env": {
         "SCOREZILLA_TOKEN": "${user_config.scorezilla_token}"
       }
