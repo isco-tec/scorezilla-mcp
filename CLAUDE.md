@@ -30,6 +30,7 @@ Package manager is **pnpm** (v9 in CI) — never npm/yarn.
 - Part of the drift guard is compile-time (`expectTypeOf`) — it fails `pnpm typecheck`, not `pnpm test`. Run both.
 - Base URL is HTTPS-only (localhost exempted); write tools send content-derived `Idempotency-Key` headers — preserve both behaviors when touching the HTTP layer.
 - Runtime env vars (users', not CI): `SCOREZILLA_TOKEN`, `SCOREZILLA_BASE_URL`, `SCOREZILLA_BETA_TOKEN`. Reference names only; never write values anywhere.
+- **Claude plugin (`plugin/`)** is submitted to Anthropic's plugin directory, which tracks `main`. It pins the MCP server via `plugin/package.json` + `plugin/package-lock.json` (npm, not pnpm; needed for the directory's Verified badge). After each `@scorezilla/mcp` release: bump the pin, run `npm install --package-lock-only --ignore-scripts` in `plugin/`, bump `version` in `plugin/.claude-plugin/plugin.json`, then `claude plugin validate --strict ./plugin`. Before testing with `claude --plugin-dir ./plugin`, run `npm ci --ignore-scripts` in `plugin/` (in-place loads skip the dependency install).
 - README "Status" blurb tends to lag releases — refresh it when shipping a version.
 - Pre-flight before any PR: `pnpm typecheck && pnpm test && pnpm build && node dist/index.js --version`.
 
