@@ -11,3 +11,8 @@ coverage/
 # pnpm auto-generates this in single-package repos when it picks up
 # workspace probes from parent directories; we don't use workspaces here.
 pnpm-workspace.yaml
+
+# MCPB bundle staging + output (scripts/pack-mcpb.mjs)
+mcpb/server/
+mcpb/LICENSE
+*.mcpb

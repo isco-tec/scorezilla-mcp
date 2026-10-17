@@ -35,6 +35,7 @@ function read(path) {
 
 const pkg = read('../package.json');
 const server = read('../server.json');
+const manifest = read('../mcpb/manifest.json');
 
 const checks = [
   { name: 'package.json#version', value: pkg.version },
@@ -43,6 +44,7 @@ const checks = [
     name: 'server.json.packages[0].version',
     value: server.packages?.[0]?.version,
   },
+  { name: 'mcpb/manifest.json#version', value: manifest.version },
 ];
 
 // Also assert the package identifier the Registry points at is our

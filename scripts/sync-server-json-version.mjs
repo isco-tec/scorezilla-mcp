@@ -10,6 +10,7 @@
  * Touches two fields in server.json:
  *   • `.version`
  *   • `.packages[0].version`
+ * and `.version` in mcpb/manifest.json (the MCPB bundle manifest).
  *
  * After this runs, `scripts/check-version-sync.mjs` will pass. CI
  * runs the check regardless to catch the case where someone updated
@@ -20,6 +21,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 
 const pkgPath = new URL('../package.json', import.meta.url);
 const serverPath = new URL('../server.json', import.meta.url);
+const manifestPath = new URL('../mcpb/manifest.json', import.meta.url);
 
 const pkg = JSON.parse(readFileSync(pkgPath, 'utf8'));
 const server = JSON.parse(readFileSync(serverPath, 'utf8'));
@@ -41,6 +43,15 @@ const after = JSON.stringify({
 
 // Preserve trailing newline + 2-space indent (matches mcp-publisher init format)
 writeFileSync(serverPath, JSON.stringify(server, null, 2) + '\n');
+
+const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+if (manifest.version !== pkg.version) {
+  writeFileSync(
+    manifestPath,
+    JSON.stringify({ ...manifest, version: pkg.version }, null, 2) + '\n',
+  );
+  console.log(`✓ mcpb/manifest.json synced to ${pkg.version}`);
+}
 
 if (before === after) {
   console.log(
