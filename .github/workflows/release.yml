@@ -45,8 +45,13 @@ on:
 
 # A release is atomic-ish — don't let two runs race. We DO NOT cancel an
 # in-flight run; a half-completed release is worse than a queued one.
+#
+# Group renamed 2026-10-20: the old `scorezilla-mcp-release` group was wedged
+# by a ghost run — every Release run since 2026-09-12 sat in `pending` with
+# zero jobs (no visible run held it; GitHub-side). Renaming the group is the
+# known unwedge. If it happens again, bump the suffix.
 concurrency:
-  group: scorezilla-mcp-release
+  group: scorezilla-mcp-release-v2
   cancel-in-progress: false
 
 permissions:
