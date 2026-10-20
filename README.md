@@ -4,7 +4,7 @@
 [![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 [![scorezilla-mcp MCP server](https://glama.ai/mcp/servers/isco-tec/scorezilla-mcp/badges/score.svg)](https://glama.ai/mcp/servers/isco-tec/scorezilla-mcp)
 
-**Add a global leaderboard to your game by asking Claude Code or Cursor.** The SDK it wires in is ~4 KB gzipped, with zero runtime dependencies.
+**Add a global leaderboard to your game by asking Claude Code or Cursor.** The SDK it wires in is ~5 KB gzipped, with zero runtime dependencies.
 
 Official Model Context Protocol (MCP) server for [Scorezilla](https://scorezilla.dev). Connect it to your AI coding assistant (Claude Code, Cursor, Continue.dev, …) and ship a working leaderboard without leaving your editor.
 
