@@ -1,6 +1,6 @@
 {
   "name": "@scorezilla/mcp",
-  "version": "0.4.3",
+  "version": "0.4.4",
   "mcpName": "io.github.isco-tec/mcp",
   "description": "Official Scorezilla MCP: add a global leaderboard to your game by asking Claude Code or Cursor.",
   "license": "MIT",
