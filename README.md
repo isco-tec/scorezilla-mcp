@@ -62,6 +62,12 @@ In Claude Code or Cursor: _"Add a Scorezilla leaderboard to this game."_
 | `create_game` | Creates a new (empty) game. Use when a game already exists (so `bootstrap_leaderboard` would conflict) or you want another. |
 | `create_board` | Adds a leaderboard board to an **existing** game (by `gameId`), with full options (sortDir, scoreKind, retention, bounds). |
 | `mint_key` | Mints a fresh public/secret key pair for an existing game. The secret is shown once. |
+| `update_board_config` | Changes a board's score bounds (e.g. an anti-cheat `maxScore`) and retention. Partial updates; `null` clears a bound. |
+| `update_game_config` | Sets a game's browser-submit origin allowlist (e.g. `https://yourgame.com`, `*.yourgame.com`). An empty list allows all origins. |
+
+## Plan limits
+
+Creating games and boards counts toward your Scorezilla plan's limits (Free: 2 games × 3 boards each; see [pricing](https://scorezilla.dev/pricing/)). When a write would go past a limit, the tool returns a `plan_limit` error with the limit and a direct upgrade link, which your assistant can pass on. Nothing is ever billed automatically. Requests are also rate-limited per token and per account; a `rate_limited` error says when to retry.
 
 ## Flags
 
