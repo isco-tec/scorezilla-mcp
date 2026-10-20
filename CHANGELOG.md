@@ -1,5 +1,11 @@
 # @scorezilla/mcp
 
+## 0.4.4
+
+### Patch Changes
+
+- [#77](https://github.com/isco-tec/scorezilla-mcp/pull/77) [`a33ba3b`](https://github.com/isco-tec/scorezilla-mcp/commit/a33ba3b40ab73d5df0423db86d20fdc43374d34c) Thanks [@isco-tec](https://github.com/isco-tec)! - Sharper npm and MCP Registry description. README: one-command Claude Code install (`claude mcp add`), the Cursor config path, and the two config tools in the tools table. Adds an MCPB bundle manifest and `pnpm pack:mcpb` for catalogs that distribute local servers as `.mcpb`.
+
 ## 0.4.3
 
 ### Patch Changes

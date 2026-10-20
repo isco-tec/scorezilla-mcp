@@ -3,7 +3,7 @@
   "manifest_version": "0.3",
   "name": "scorezilla-mcp",
   "display_name": "Scorezilla",
-  "version": "0.4.3",
+  "version": "0.4.4",
   "description": "Add a global leaderboard to your game by asking Claude Code or Cursor. ~5 KB SDK, zero dependencies.",
   "long_description": "Official MCP server for [Scorezilla](https://scorezilla.dev), hosted leaderboards for indie, browser and AI-built games.\n\nAsk your assistant to \"add a leaderboard to this game\" and it creates the game and board, then pastes ready-to-run SDK code into your project. The SDK it wires in is ~5 KB gzipped with zero runtime dependencies.\n\nEleven tools: five read-only (`list_games`, `list_boards`, `get_keys`, `get_board_top_n`, `get_sdk_snippet`) and six that write (`bootstrap_leaderboard`, `create_game`, `create_board`, `mint_key`, `update_board_config`, `update_game_config`). Pass `--read-only` to register only the read tools.\n\nNeeds a free Scorezilla account: sign up at dashboard.scorezilla.dev, open **MCP tokens** and create a token.",
   "author": {
