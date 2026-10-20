@@ -3,7 +3,7 @@
   "name": "scorezilla",
   "displayName": "Scorezilla",
   "version": "0.1.1",
-  "description": "Add a global leaderboard to your game by asking Claude. ~4 KB SDK, zero dependencies.",
+  "description": "Add a global leaderboard to your game by asking Claude. ~5 KB SDK, zero dependencies.",
   "author": {
     "name": "isco-tec",
     "url": "https://github.com/isco-tec"

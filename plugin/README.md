@@ -1,6 +1,6 @@
 # Scorezilla plugin for Claude
 
-Add a global leaderboard to your game by asking Claude. ~4 KB SDK, zero dependencies.
+Add a global leaderboard to your game by asking Claude. ~5 KB SDK, zero dependencies.
 
 This plugin connects Claude to [Scorezilla](https://scorezilla.dev), a hosted leaderboard service for games,
 and teaches it the whole setup: ask "add a leaderboard to this game" and Claude creates the game and board in

@@ -1,0 +1,107 @@
+{
+  "$schema": "https://raw.githubusercontent.com/modelcontextprotocol/mcpb/main/schemas/mcpb-manifest-v0.3.schema.json",
+  "manifest_version": "0.3",
+  "name": "scorezilla-mcp",
+  "display_name": "Scorezilla",
+  "version": "0.4.3",
+  "description": "Add a global leaderboard to your game by asking Claude Code or Cursor. ~5 KB SDK, zero dependencies.",
+  "long_description": "Official MCP server for [Scorezilla](https://scorezilla.dev), hosted leaderboards for indie, browser and AI-built games.\n\nAsk your assistant to \"add a leaderboard to this game\" and it creates the game and board, then pastes ready-to-run SDK code into your project. The SDK it wires in is ~5 KB gzipped with zero runtime dependencies.\n\nEleven tools: five read-only (`list_games`, `list_boards`, `get_keys`, `get_board_top_n`, `get_sdk_snippet`) and six that write (`bootstrap_leaderboard`, `create_game`, `create_board`, `mint_key`, `update_board_config`, `update_game_config`). Pass `--read-only` to register only the read tools.\n\nNeeds a free Scorezilla account: sign up at dashboard.scorezilla.dev, open **MCP tokens** and create a token.",
+  "author": {
+    "name": "isco-tec",
+    "url": "https://github.com/isco-tec"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/isco-tec/scorezilla-mcp"
+  },
+  "homepage": "https://scorezilla.dev/mcp",
+  "documentation": "https://github.com/isco-tec/scorezilla-mcp#readme",
+  "support": "https://github.com/isco-tec/scorezilla-mcp/issues",
+  "license": "MIT",
+  "keywords": [
+    "leaderboard",
+    "game-dev",
+    "scores",
+    "claude-code",
+    "cursor",
+    "scorezilla"
+  ],
+  "server": {
+    "type": "node",
+    "entry_point": "server/index.js",
+    "mcp_config": {
+      "command": "node",
+      "args": [
+        "${__dirname}/server/index.js"
+      ],
+      "env": {
+        "SCOREZILLA_TOKEN": "${user_config.scorezilla_token}"
+      }
+    }
+  },
+  "user_config": {
+    "scorezilla_token": {
+      "type": "string",
+      "title": "Scorezilla MCP token",
+      "description": "Create one at https://dashboard.scorezilla.dev/account/tokens (starts with mcp_live_).",
+      "sensitive": true,
+      "required": true
+    }
+  },
+  "tools": [
+    {
+      "name": "list_games",
+      "description": "List the games on your Scorezilla account."
+    },
+    {
+      "name": "list_boards",
+      "description": "List the leaderboards under a game."
+    },
+    {
+      "name": "get_keys",
+      "description": "Get a game's public key and secret-key prefix."
+    },
+    {
+      "name": "get_board_top_n",
+      "description": "Read the top entries on a leaderboard."
+    },
+    {
+      "name": "get_sdk_snippet",
+      "description": "Get ready-to-paste integration code for a board."
+    },
+    {
+      "name": "bootstrap_leaderboard",
+      "description": "Create a game and its first board in one call, with SDK code."
+    },
+    {
+      "name": "create_game",
+      "description": "Create a new, empty game."
+    },
+    {
+      "name": "create_board",
+      "description": "Add a leaderboard to an existing game."
+    },
+    {
+      "name": "mint_key",
+      "description": "Mint a fresh public/secret key pair for a game."
+    },
+    {
+      "name": "update_board_config",
+      "description": "Change a board's score bounds and retention."
+    },
+    {
+      "name": "update_game_config",
+      "description": "Set a game's allowed browser origins."
+    }
+  ],
+  "compatibility": {
+    "platforms": [
+      "darwin",
+      "win32",
+      "linux"
+    ],
+    "runtimes": {
+      "node": ">=20.0.0"
+    }
+  }
+}
