@@ -50,6 +50,8 @@ claude mcp add scorezilla --scope user -e SCOREZILLA_TOKEN=mcp_live_… -- npx -
 
 > 🔒 **Keep your MCP config private.** Both clients store the token in plaintext (`~/.claude.json` for Claude Code, `~/.cursor/mcp.json` for Cursor). Don't commit it to git, sync it to a public dotfiles repo, or back it up to a shared location. On macOS/Linux, `chmod 600` the file so only your user can read it. If a token leaks, revoke it at [dashboard.scorezilla.dev/account/tokens](https://dashboard.scorezilla.dev/account/tokens).
 
+**Claude Desktop** — one click: download [`scorezilla-mcp.mcpb`](https://github.com/isco-tec/scorezilla-mcp/releases/latest/download/scorezilla-mcp.mcpb) from the latest release, double-click it, and paste your `mcp_live_…` token when Claude Desktop asks. The token is kept in your system's secure credential store.
+
 **Anything else MCP-compatible** — point your client at `npx -y @scorezilla/mcp` with `SCOREZILLA_TOKEN` set in the environment.
 
 ### 3. Ask away
