@@ -74,6 +74,12 @@ In Claude Code or Cursor: _"Add a Scorezilla leaderboard to this game."_
 | `update_board_config` | Changes a board's score bounds (e.g. an anti-cheat `maxScore`) and retention. Partial updates; `null` clears a bound. |
 | `update_game_config` | Sets a game's browser-submit origin allowlist (e.g. `https://yourgame.com`, `*.yourgame.com`). An empty list allows all origins. |
 
+## Retries
+
+The create tools (`bootstrap_leaderboard`, `create_game`, `create_board`, `mint_key`) send an `Idempotency-Key` derived from their arguments. If a call times out and your assistant retries it with the same arguments within 5 minutes, the API returns the original result instead of creating a duplicate: the same game and board for `bootstrap_leaderboard`, the same key pair for `mint_key`.
+
+After that window, or if `bootstrap_leaderboard` returns `partial_failure` or `slug_taken_active`, don't bootstrap again. Call `list_games` (and `list_boards`) to see what exists, then finish with `create_board` or `mint_key`.
+
 ## Plan limits
 
 Creating games and boards counts toward your Scorezilla plan's limits (Free: 2 games × 3 boards each; see [pricing](https://scorezilla.dev/pricing/)). When a write would go past a limit, the tool returns a `plan_limit` error with the limit and a direct upgrade link, which your assistant can pass on. Nothing is ever billed automatically. Requests are also rate-limited per token and per account; a `rate_limited` error says when to retry.
