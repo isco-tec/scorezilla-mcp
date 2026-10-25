@@ -1,5 +1,11 @@
 # @scorezilla/mcp
 
+## 0.4.5
+
+### Patch Changes
+
+- [#88](https://github.com/isco-tec/scorezilla-mcp/pull/88) [`2463757`](https://github.com/isco-tec/scorezilla-mcp/commit/24637572777426e4ba34300fa8f984fa9180b3fa) Thanks [@isco-tec](https://github.com/isco-tec)! - `bootstrap_leaderboard` now sends a content-derived `Idempotency-Key`, like the other create tools. A retry with the same arguments within 5 minutes (say, after a client timeout) returns the original game and board instead of creating a duplicate. The tool description and README say when a retry is safe and that `list_games` is the check after that window.
+
 ## 0.4.4
 
 ### Patch Changes
