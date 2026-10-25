@@ -529,6 +529,85 @@ describe('bootstrap_leaderboard', () => {
   });
 });
 
+describe('bootstrap_leaderboard idempotency', () => {
+  const BOOTSTRAP_ARGS = {
+    gameName: 'Pong',
+    gameSlug: 'pong',
+    boardName: 'High Scores',
+    boardSlug: 'high-scores',
+  };
+
+  /** Fake API that dedupes on Idempotency-Key like the real one (5-min KV
+   *  replay of 2xx). `dropFirstResponse` simulates a client timeout: the
+   *  server commits the create, but the response never reaches the client. */
+  function fakeDedupingBootstrapApi(dropFirstResponse: boolean) {
+    const byKey = new Map<string, string>();
+    const keys: Array<string | null> = [];
+    let gamesCreated = 0;
+    let calls = 0;
+    globalThis.fetch = vi.fn(async (_input: FetchInput, init?: FetchInit) => {
+      calls += 1;
+      const key = new Headers(init?.headers).get('idempotency-key');
+      keys.push(key);
+      let gameId = key ? byKey.get(key) : undefined;
+      if (!gameId) {
+        gamesCreated += 1;
+        gameId = `00000000-0000-0000-0000-00000000000${gamesCreated}`;
+        if (key) byKey.set(key, gameId);
+      }
+      if (dropFirstResponse && calls === 1) throw new Error('The operation timed out');
+      return jsonResponse({
+        ok: true,
+        gameId,
+        boardId: 'b',
+        publicKey: 'pk_x',
+        sdkSnippet: 's',
+        snippets: { widget: null, sdk: 's' },
+        recommendation: 'r',
+      });
+    }) as typeof fetch;
+    return { keys, gamesCreated: () => gamesCreated };
+  }
+
+  it('a retry after a timeout returns the same game, not a new one', async () => {
+    const api = fakeDedupingBootstrapApi(true);
+    const client = await connectedClient();
+
+    const first = await client.callTool({ name: 'bootstrap_leaderboard', arguments: BOOTSTRAP_ARGS });
+    expect(first.isError).toBe(true);
+    const retry = await client.callTool({ name: 'bootstrap_leaderboard', arguments: BOOTSTRAP_ARGS });
+
+    expect(retry.isError).toBeFalsy();
+    const text = (retry.content as Array<{ text: string }>)[0]!.text;
+    expect(JSON.parse(text).gameId).toBe('00000000-0000-0000-0000-000000000001');
+    expect(api.gamesCreated()).toBe(1);
+    expect(api.keys[0]).toBeTruthy();
+    expect(api.keys[1]).toBe(api.keys[0]);
+  });
+
+  it('derives the key from the content: readable prefix, printable ASCII, ≤128 chars', async () => {
+    const api = fakeDedupingBootstrapApi(false);
+    const client = await connectedClient();
+    await client.callTool({ name: 'bootstrap_leaderboard', arguments: BOOTSTRAP_ARGS });
+
+    const key = api.keys[0]!;
+    expect(key).toMatch(/^bootstrap_leaderboard:pong:high-scores:[0-9a-f]{16}$/);
+    expect(key).toMatch(/^[\x21-\x7e]{1,128}$/);
+  });
+
+  it('a different request (other axis args) gets a different key, so it is never replayed', async () => {
+    const api = fakeDedupingBootstrapApi(false);
+    const client = await connectedClient();
+    await client.callTool({ name: 'bootstrap_leaderboard', arguments: BOOTSTRAP_ARGS });
+    await client.callTool({
+      name: 'bootstrap_leaderboard',
+      arguments: { ...BOOTSTRAP_ARGS, hostingPattern: 'client_with_server' },
+    });
+
+    expect(api.keys[1]).not.toBe(api.keys[0]);
+  });
+});
+
 describe('get_sdk_snippet', () => {
   it('forwards the integration-axis args to POST /v1/mcp/sdk-snippet', async () => {
     let capturedBody: Record<string, unknown> | null = null;

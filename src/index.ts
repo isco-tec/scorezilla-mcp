@@ -21,6 +21,7 @@
  * License: MIT
  */
 
+import { createHash } from 'node:crypto';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
@@ -306,6 +307,21 @@ function failFromApi(r: ApiFail) {
   return { content: [{ type: 'text' as const, text: lines.join('\n') }], isError: true };
 }
 
+/** Idempotency-Key for bootstrap_leaderboard. The slugs keep it readable in
+ *  server logs; the hash covers every arg, because the server replays the
+ *  cached response without comparing bodies — so a re-run with different
+ *  axis args must get a fresh key, not the first call's snippets. Worst case
+ *  22 + 42 + 1 + 42 + 1 + 16 = 124 chars, inside the server's 128 cap. */
+function bootstrapIdempotencyKey(input: Record<string, unknown>): string {
+  const canonical = JSON.stringify(
+    Object.keys(input)
+      .sort()
+      .map((k) => [k, input[k]]),
+  );
+  const digest = createHash('sha256').update(canonical).digest('hex').slice(0, 16);
+  return `bootstrap_leaderboard:${input.gameSlug}:${input.boardSlug}:${digest}`;
+}
+
 // ---------------------------------------------------------------------------
 // Integration-axis inputs (shared by bootstrap_leaderboard + get_sdk_snippet)
 // ---------------------------------------------------------------------------
@@ -452,7 +468,7 @@ export function buildServer(config: RuntimeConfig): McpServer {
       // The first sentence is load-bearing: it's the heuristic the AI uses to
       // choose this one-shot over the granular create_game + create_board when
       // starting from scratch (one call, and it returns ready-to-paste code).
-      'Use this when starting from scratch — creates a new game AND its first board in one call, then returns ready-to-paste integration code wired against the board. The fastest path from "I want a leaderboard" to "scores are flowing." Do NOT call this if the developer already has games — call list_games first and use bootstrap_leaderboard only when no game exists yet. The response includes `snippets.sdk` (framework/server code), `snippets.widget` (a themeable drop-in HTML embed; null for server_only), and a plain-English `recommendation` to relay to the developer — paste `snippets.sdk` (and/or `snippets.widget`) into their code. The optional axis args tailor the output: set hostingPattern=\'client_with_server\' for anti-cheat (server-validated scores), playerIdentityStrategy=\'auth_provider\' (+ authProvider) for OAuth identity, or serverLanguage for a non-TypeScript server. Omit them all for the simplest anonymous + client-only setup.',
+      'Use this when starting from scratch — creates a new game AND its first board in one call, then returns ready-to-paste integration code wired against the board. The fastest path from "I want a leaderboard" to "scores are flowing." Do NOT call this if the developer already has games — call list_games first and use bootstrap_leaderboard only when no game exists yet. The response includes `snippets.sdk` (framework/server code), `snippets.widget` (a themeable drop-in HTML embed; null for server_only), and a plain-English `recommendation` to relay to the developer — paste `snippets.sdk` (and/or `snippets.widget`) into their code. The optional axis args tailor the output: set hostingPattern=\'client_with_server\' for anti-cheat (server-validated scores), playerIdentityStrategy=\'auth_provider\' (+ authProvider) for OAuth identity, or serverLanguage for a non-TypeScript server. Omit them all for the simplest anonymous + client-only setup. Retry-safe: if a call times out or the connection drops, calling it again with the SAME arguments within 5 minutes returns the original game and board instead of creating a duplicate. After that window, or on a partial_failure or slug_taken_active error, do NOT bootstrap again — call list_games to see what was created, then finish with create_board / mint_key.',
       {
         gameName: z.string().min(1).max(100).describe('Display name of the game (any string)'),
         gameSlug: z
@@ -475,7 +491,11 @@ export function buildServer(config: RuntimeConfig): McpServer {
         ...axisInputShape,
       },
       async (input) => {
-        const r = await api.post<McpBootstrapSuccess>('/v1/mcp/bootstrap', input);
+        const r = await api.post<McpBootstrapSuccess>(
+          '/v1/mcp/bootstrap',
+          input,
+          bootstrapIdempotencyKey(input),
+        );
         return r.ok ? ok(r.data) : failFromApi(r);
       },
     );
