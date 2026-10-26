@@ -32,7 +32,7 @@ Package manager is **pnpm** (v9 in CI) — never npm/yarn.
 - Runtime env vars (users', not CI): `SCOREZILLA_TOKEN`, `SCOREZILLA_BASE_URL`, `SCOREZILLA_BETA_TOKEN`. Reference names only; never write values anywhere.
 - **MCPB bundle for Claude Desktop:** after each release, run `pnpm pack:mcpb` on `main` and attach the output to the new GitHub release under the stable name `scorezilla-mcp.mcpb` (`gh release upload "@scorezilla/mcp@<version>" scorezilla-mcp.mcpb`). The README links `releases/latest/download/scorezilla-mcp.mcpb`, so a release without it breaks that link. (Smithery was the other MCPB consumer; it shut down publishing on 2026-10-31 — don't target it.)
 - **Claude plugin (`plugin/`)** is submitted to Anthropic's plugin directory, which tracks `main`. It pins the MCP server via `plugin/package.json` + `plugin/package-lock.json` (npm, not pnpm; needed for the directory's Verified badge). After each `@scorezilla/mcp` release: bump the pin, run `npm install --package-lock-only --ignore-scripts` in `plugin/`, bump `version` in `plugin/.claude-plugin/plugin.json`, then `claude plugin validate --strict ./plugin`. Before testing with `claude --plugin-dir ./plugin`, run `npm ci --ignore-scripts` in `plugin/` (in-place loads skip the dependency install).
-- README "Status" blurb tends to lag releases — refresh it when shipping a version.
+- The README has no version-specific text (the old "Status" blurb was removed in #75); the version lives in `plugin/README.md`, bumped with the plugin pin.
 - Pre-flight before any PR: `pnpm typecheck && pnpm test && pnpm build && node dist/index.js --version`.
 
 Full brief & known issues: ~/Code/ccc/projects/by-name/scorezilla-mcp/

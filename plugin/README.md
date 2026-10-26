@@ -9,7 +9,7 @@ arrives.
 
 ## What's inside
 
-- **MCP server:** [`@scorezilla/mcp`](https://www.npmjs.com/package/@scorezilla/mcp), version 0.4.4, pinned
+- **MCP server:** [`@scorezilla/mcp`](https://www.npmjs.com/package/@scorezilla/mcp), version 0.4.5, pinned
   with its hash in `package-lock.json` and started with `node`. Eleven tools: five that read (`list_games`, `list_boards`, `get_keys`, `get_board_top_n`,
   `get_sdk_snippet`) and six that create or change things in your Scorezilla account
   (`bootstrap_leaderboard`, `create_game`, `create_board`, `mint_key`, `update_board_config`,
@@ -30,7 +30,7 @@ Creating games and boards counts toward your plan's limits (Free: 2 games × 3 b
 
 ## What it sends where
 
-- When you install the plugin, Claude Code installs `@scorezilla/mcp@0.4.4` from the npm registry, checked
+- When you install the plugin, Claude Code installs `@scorezilla/mcp@0.4.5` from the npm registry, checked
   against the hash in `package-lock.json`. The package has no dependencies of its own.
 - The server sends your token and the requests Claude makes (game and board names, settings, board ids) to
   `https://api.scorezilla.dev` over HTTPS. Nothing else leaves your machine, and the server doesn't read your
