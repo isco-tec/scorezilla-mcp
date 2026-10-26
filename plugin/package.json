@@ -4,6 +4,6 @@
   "description": "Pins the Scorezilla MCP server that this plugin runs. Claude Code installs it from package-lock.json.",
   "license": "MIT",
   "dependencies": {
-    "@scorezilla/mcp": "0.4.4"
+    "@scorezilla/mcp": "0.4.5"
   }
 }
