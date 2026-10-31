@@ -32,6 +32,7 @@ import {
   MCP_SERVER_LANGUAGES,
 } from './contract';
 import type {
+  McpBoardSummary,
   McpBootstrapSuccess,
   McpCreateBoardResponse,
   McpCreateGameResponse,
@@ -322,6 +323,11 @@ function bootstrapIdempotencyKey(input: Record<string, unknown>): string {
   return `bootstrap_leaderboard:${input.gameSlug}:${input.boardSlug}:${digest}`;
 }
 
+/** Board periods accepted by create_board. `satisfies` keeps every entry a
+ *  valid contract value; test/integration.test.ts asserts the reverse (no
+ *  contract value missing), so an upstream addition fails typecheck. */
+export const BOARD_PERIODS = ['none', 'daily_utc'] as const satisfies readonly McpBoardSummary['period'][];
+
 // ---------------------------------------------------------------------------
 // Integration-axis inputs (shared by bootstrap_leaderboard + get_sdk_snippet)
 // ---------------------------------------------------------------------------
@@ -403,7 +409,7 @@ export function buildServer(config: RuntimeConfig): McpServer {
 
   server.tool(
     'list_boards',
-    'List all leaderboards (boards) under a given game. Each board has its own id, slug, ranking (sortDir: desc = high-score-wins, asc = lowest-time-wins), score kind (integer / duration_ms / float), retention policy, and optional min/max score bounds. Call this to find a board\'s id before generating a snippet (get_sdk_snippet) or reading standings (get_board_top_n), or to show the developer what boards already exist under a game returned by list_games.',
+    'List all leaderboards (boards) under a given game. Each board has its own id, slug, ranking (sortDir: desc = high-score-wins, asc = lowest-time-wins), score kind (integer / duration_ms / float), retention policy, optional min/max score bounds, and period (none = one all-time ranking, daily_utc = a Daily Challenge board that starts empty every UTC day). Call this to find a board\'s id before generating a snippet (get_sdk_snippet) or reading standings (get_board_top_n), or to show the developer what boards already exist under a game returned by list_games.',
     {
       gameId: z.string().uuid().describe('UUID of the game to list boards for (from list_games)'),
     },
@@ -522,7 +528,7 @@ export function buildServer(config: RuntimeConfig): McpServer {
 
     server.tool(
       'create_board',
-      'Add a leaderboard board to an EXISTING game (by gameId — get it from list_games). This is how you add boards to a game that already exists; bootstrap_leaderboard only works for brand-new games. sortDir "desc" = high-scores-win, "asc" = lowest-time-wins. Returns the created board including its id.',
+      'Add a leaderboard board to an EXISTING game (by gameId — get it from list_games). This is how you add boards to a game that already exists; bootstrap_leaderboard only works for brand-new games. sortDir "desc" = high-scores-win, "asc" = lowest-time-wins. Set period="daily_utc" when the developer wants a daily challenge / a board that resets every day (it starts empty each UTC day; past days stay readable); omit it for a normal all-time board. period is fixed at creation and cannot be changed later (update_board_config does not accept it) — to switch, create a new board. Returns the created board including its id and period.',
       {
         gameId: z.string().uuid().describe('UUID of the game to add the board to (from list_games)'),
         name: z.string().min(1).max(100).describe('Display name of the leaderboard'),
@@ -550,8 +556,18 @@ export function buildServer(config: RuntimeConfig): McpServer {
           .describe('Required when retentionPolicy="top_n": how many top scores to retain (1–1,000,000)'),
         minScore: z.number().optional().describe('Optional lower bound; scores below are rejected'),
         maxScore: z.number().optional().describe('Optional upper bound; scores above are rejected'),
+        period: z
+          .enum(BOARD_PERIODS)
+          .optional()
+          .describe(
+            "'none' (default): one all-time ranking. 'daily_utc': a Daily Challenge board that starts " +
+              'empty every UTC day (past days stay readable for 30 days). Pick daily_utc for "daily ' +
+              'challenge" / "resets every day" boards. IMMUTABLE: it cannot be changed after creation.',
+          ),
       },
       async (input) => {
+        // Optional fields the caller omits stay out of the JSON body (undefined
+        // is dropped by JSON.stringify), so the API applies its own default.
         const { gameId, ...board } = input;
         const r = await api.post<McpCreateBoardResponse>(
           `/v1/mcp/games/${gameId}/boards`,

@@ -53,6 +53,10 @@ export interface McpBoardSummary {
   retentionN: number | null;
   minScore: number | null;
   maxScore: number | null;
+  /** `'daily_utc'`: the board starts empty every UTC day (a "Daily Challenge"
+   *  board; read past days with `?period=YYYY-MM-DD`). `'none'`: one all-time
+   *  ranking. Set at creation, immutable. */
+  period: 'none' | 'daily_utc';
   createdAt: number;
 }
 

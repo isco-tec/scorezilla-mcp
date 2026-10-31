@@ -9,8 +9,9 @@
 import { afterEach, beforeEach, describe, expect, expectTypeOf, it, vi } from 'vitest';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
-import { buildServer } from '../src/index';
+import { BOARD_PERIODS, buildServer } from '../src/index';
 import type {
+  McpBoardSummary,
   McpBootstrapSuccess,
   McpCreateBoardResponse,
   McpCreateGameResponse,
@@ -181,8 +182,10 @@ describe('write tools', () => {
           sortDir: 'desc',
           scoreKind: 'integer',
           retentionPolicy: 'all',
+          retentionN: null,
           minScore: null,
           maxScore: null,
+          period: 'none',
           createdAt: 1,
         },
       }),
@@ -195,6 +198,67 @@ describe('write tools', () => {
     const text = (result.content as Array<{ text: string }>)[0]!.text;
     expect(text).toContain('b-new');
     expect(text).toContain('world-void');
+  });
+
+  it('create_board sends period in the body when set and shows it in the result', async () => {
+    let sentBody: Record<string, unknown> | undefined;
+    prepared.push({
+      matcher: (url, init) => {
+        if (!url.endsWith('/v1/mcp/games/11111111-1111-4111-8111-111111111111/boards')) return false;
+        sentBody = JSON.parse(String(init?.body)) as Record<string, unknown>;
+        return true;
+      },
+      response: jsonResponse({
+        ok: true,
+        board: {
+          id: 'b-daily',
+          slug: 'daily',
+          name: 'Daily Challenge',
+          sortDir: 'desc',
+          scoreKind: 'integer',
+          retentionPolicy: 'all',
+          retentionN: null,
+          minScore: null,
+          maxScore: null,
+          period: 'daily_utc',
+          createdAt: 1,
+        },
+      }),
+    });
+    const client = await connectedClient(false);
+    const result = await client.callTool({
+      name: 'create_board',
+      arguments: {
+        gameId: '11111111-1111-4111-8111-111111111111',
+        name: 'Daily Challenge',
+        slug: 'daily',
+        period: 'daily_utc',
+      },
+    });
+    expect(result.isError).toBeFalsy();
+    expect(sentBody?.period).toBe('daily_utc');
+    const text = (result.content as Array<{ text: string }>)[0]!.text;
+    expect(text).toContain('"period": "daily_utc"');
+  });
+
+  it('create_board omits period from the body when not provided (API default applies)', async () => {
+    let sentBody: Record<string, unknown> | undefined;
+    prepared.push({
+      matcher: (url, init) => {
+        if (!url.endsWith('/v1/mcp/games/11111111-1111-4111-8111-111111111111/boards')) return false;
+        sentBody = JSON.parse(String(init?.body)) as Record<string, unknown>;
+        return true;
+      },
+      response: jsonResponse({ ok: true, board: { id: 'b-all', period: 'none' } }),
+    });
+    const client = await connectedClient(false);
+    await client.callTool({
+      name: 'create_board',
+      arguments: { gameId: '11111111-1111-4111-8111-111111111111', name: 'All Time', slug: 'all-time' },
+    });
+    expect(sentBody).toBeDefined();
+    expect(sentBody).not.toHaveProperty('period');
+    expect(sentBody).not.toHaveProperty('gameId');
   });
 
   it('mint_key POSTs to the keys path and returns pk_/sk_', async () => {
@@ -699,6 +763,36 @@ describe('input validation', () => {
     const text = (result.content as Array<{ text: string }>)[0]!.text;
     expect(text).toContain('gameSlug');
   });
+
+  it('rejects create_board with an unknown period before any request is sent', async () => {
+    const client = await connectedClient();
+    const result = await client.callTool({
+      name: 'create_board',
+      arguments: {
+        gameId: '11111111-1111-4111-8111-111111111111',
+        name: 'Weekly',
+        slug: 'weekly',
+        period: 'weekly',
+      },
+    });
+    expect(result.isError).toBe(true);
+    expect((result.content as Array<{ text: string }>)[0]!.text).toContain('period');
+    expect(globalThis.fetch).not.toHaveBeenCalled();
+  });
+
+  it('update_board_config does not accept period (immutable after creation)', async () => {
+    const client = await connectedClient();
+    const { tools } = await client.listTools();
+    const update = tools.find((t) => t.name === 'update_board_config');
+    const create = tools.find((t) => t.name === 'create_board');
+    expect(Object.keys(update?.inputSchema.properties ?? {})).not.toContain('period');
+    expect(Object.keys(create?.inputSchema.properties ?? {})).toContain('period');
+  });
+
+  it('create_board period enum covers every contract period', () => {
+    expectTypeOf<McpBoardSummary['period']>().toEqualTypeOf<(typeof BOARD_PERIODS)[number]>();
+    expect([...BOARD_PERIODS]).toEqual(['none', 'daily_utc']);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -777,6 +871,7 @@ describe('contract shapes', () => {
         retentionN: 100,
         minScore: null,
         maxScore: null,
+        period: 'none',
         createdAt: 1,
       },
     } satisfies McpCreateBoardResponse;
@@ -807,6 +902,7 @@ describe('contract shapes', () => {
         retentionN: null,
         minScore: null,
         maxScore: 300,
+        period: 'daily_utc',
         createdAt: 1,
       },
     } satisfies McpUpdateBoardConfigResponse;
