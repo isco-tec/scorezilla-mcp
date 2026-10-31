@@ -63,15 +63,15 @@ In Claude Code or Cursor: _"Add a Scorezilla leaderboard to this game."_
 | Tool | What it does |
 |---|---|
 | `list_games` | Lists your games. Use this first to orient. |
-| `list_boards` | Lists leaderboards under a game. |
+| `list_boards` | Lists leaderboards under a game, with each board's ranking, score kind, retention, bounds and `period` (all-time or daily). |
 | `get_keys` | Returns the public key (safe to embed) and the secret-key prefix. The full secret never leaves the dashboard. |
 | `get_board_top_n` | Returns the top entries on a board. The "is my integration working?" tool. |
 | `get_sdk_snippet` | Returns ready-to-paste integration code for a board. Optional axis args tailor it: anonymous/OAuth identity, client-only vs. server-validated **anti-cheat**, and the server language (TS/Python/Go/C#). |
 | `bootstrap_leaderboard` | Creates a new game + first board in one call, then returns the **widget embed** + **SDK snippet** + a plain-English recommendation. Same optional axis args (anti-cheat, OAuth, server language). The 90-second-demo path. |
 | `create_game` | Creates a new (empty) game. Use when a game already exists (so `bootstrap_leaderboard` would conflict) or you want another. |
-| `create_board` | Adds a leaderboard board to an **existing** game (by `gameId`), with full options (sortDir, scoreKind, retention, bounds). |
+| `create_board` | Adds a leaderboard board to an **existing** game (by `gameId`), with full options (sortDir, scoreKind, retention, bounds, period). Pass `period: "daily_utc"` for a **Daily Challenge** board that starts empty every UTC day (past days stay readable); the default `none` is one all-time ranking. The period is fixed at creation. |
 | `mint_key` | Mints a fresh public/secret key pair for an existing game. The secret is shown once. |
-| `update_board_config` | Changes a board's score bounds (e.g. an anti-cheat `maxScore`) and retention. Partial updates; `null` clears a bound. |
+| `update_board_config` | Changes a board's score bounds (e.g. an anti-cheat `maxScore`) and retention. Partial updates; `null` clears a bound. A board's `period` can't be changed; create a new board instead. |
 | `update_game_config` | Sets a game's browser-submit origin allowlist (e.g. `https://yourgame.com`, `*.yourgame.com`). An empty list allows all origins. |
 
 ## Retries
