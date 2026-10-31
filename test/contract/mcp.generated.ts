@@ -3,7 +3,7 @@
 // Regenerate via the cross-repo contract-sync (or `node scripts/sync-contract.mjs`
 // in the monorepo). The drift guard in this repo recomputes source-sha256 below
 // and fails if this file was edited by hand or drifted from the SoT.
-// source-sha256: b8bcbff6350daba5cea0cea5d2b825e9793756c1f7c9df16b301b81b852df655
+// source-sha256: 70f7fc972a7528fbe30012a82165f4850aff9c1b357b62076de4bf872457c140
 
 /**
  * MCP response contract (#102, drift detector).
@@ -73,6 +73,10 @@ export interface McpBoardSummary {
   retentionN: number | null;
   minScore: number | null;
   maxScore: number | null;
+  /** `'daily_utc'`: the board starts empty every UTC day (a "Daily Challenge"
+   *  board; read past days with `?period=YYYY-MM-DD`). `'none'`: one all-time
+   *  ranking. Set at creation, immutable. */
+  period: 'none' | 'daily_utc';
   createdAt: number;
 }
 
