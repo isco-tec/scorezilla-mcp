@@ -41,7 +41,7 @@
     "@changesets/cli": "^3.0.3",
     "@modelcontextprotocol/sdk": "^1.32.0",
     "@types/node": "^26.6.4",
-    "tsup": "^8.5.1",
+    "tsup": "^9.0.0",
     "typescript": "^7.0.2",
     "vitest": "^4.1.11",
     "zod": "^4.6.5"
